@@ -1,84 +1,95 @@
-import React, { useState, useEffect } from 'react';
+// ============================================================
+//  src/App.jsx  — Versão com Toast + AppLayout + Roteamento
+// ============================================================
+
+import React, { useState, useEffect, useCallback } from 'react';
 import {
-  PlusCircle,
-  Trash2,
-  CheckCircle,
-  Clock,
-  DollarSign,
-  AlertCircle
+  PlusCircle, Trash2, CheckCircle, Clock, DollarSign, AlertCircle
 } from 'lucide-react';
 
-// URL base da nossa API FastAPI
-const API_URL = 'http://localhost:8000/api/contas';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { ToastProvider, useToast } from './contexts/ToastContext';
+import AppLayout from './components/AppLayout';
+import LoginPage from './pages/LoginPage';
+import RegisterPage from './pages/RegisterPage';
 
-/**
- * COMPONENTE: DashboardCards
- * Responsabilidade: Exibir os totais gerais (Pago e Pendente) vindos da API.
- * Padrão: Presentational Component (Componente Burro/Visual)
- */
-const DashboardCards = ({ resumo }) => (
-  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
-    <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 flex items-center justify-between">
-      <div>
-        <p className="text-sm font-medium text-slate-500 mb-1">Total Pendente</p>
-        <h3 className="text-3xl font-bold text-red-600">
-          R$ {resumo.total_pendente.toFixed(2)}
-        </h3>
+import './styles/auth.css';
+import './styles/toast.css';
+import './styles/layout.css';
+
+// URLs via proxy Vite (trailing slash obrigatória)
+const API_CONTAS = '/api/contas/';
+
+// ─────────────────────────────────────────────────────────────
+//  Tela: Dashboard / Lançamento de Contas
+// ─────────────────────────────────────────────────────────────
+function DashboardCards({ resumo }) {
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+      <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 flex items-center justify-between">
+        <div>
+          <p className="text-sm font-medium text-slate-500 mb-1">Total Pendente</p>
+          <h3 className="text-3xl font-bold text-red-600">
+            R$ {(resumo.total_pendente ?? 0).toFixed(2)}
+          </h3>
+        </div>
+        <div className="p-3 bg-red-50 text-red-600 rounded-full">
+          <AlertCircle size={32} />
+        </div>
       </div>
-      <div className="p-3 bg-red-50 text-red-600 rounded-full">
-        <AlertCircle size={32} />
+      <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 flex items-center justify-between">
+        <div>
+          <p className="text-sm font-medium text-slate-500 mb-1">Total Pago</p>
+          <h3 className="text-3xl font-bold text-emerald-600">
+            R$ {(resumo.total_pago ?? 0).toFixed(2)}
+          </h3>
+        </div>
+        <div className="p-3 bg-emerald-50 text-emerald-600 rounded-full">
+          <DollarSign size={32} />
+        </div>
       </div>
     </div>
+  );
+}
 
-    <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 flex items-center justify-between">
-      <div>
-        <p className="text-sm font-medium text-slate-500 mb-1">Total Pago</p>
-        <h3 className="text-3xl font-bold text-emerald-600">
-          R$ {resumo.total_pago.toFixed(2)}
-        </h3>
-      </div>
-      <div className="p-3 bg-emerald-50 text-emerald-600 rounded-full">
-        <DollarSign size={32} />
-      </div>
-    </div>
-  </div>
-);
-
-/**
- * COMPONENTE: FormularioConta
- * Responsabilidade: Coletar dados do usuário para criar uma nova conta.
- */
-const FormularioConta = ({ onContaAdicionada }) => {
+function FormularioConta({ onContaAdicionada, token }) {
+  const { toast } = useToast();
   const [descricao, setDescricao] = useState('');
   const [valor, setValor] = useState('');
   const [dataVencimento, setDataVencimento] = useState('');
+  const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!descricao || !valor || !dataVencimento) return;
-
-    const novaConta = {
-      descricao,
-      valor: parseFloat(valor),
-      data_vencimento: dataVencimento,
-      status: 'Pendente'
-    };
-
+    setLoading(true);
     try {
-      const response = await fetch(API_URL, {
+      const res = await fetch(API_CONTAS, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(novaConta)
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
+          descricao,
+          valor: parseFloat(valor),
+          data_vencimento: dataVencimento,
+          status: 'Pendente',
+        }),
       });
-
-      if (response.ok) {
-        onContaAdicionada();
-        setDescricao('');
-        setValor('');
-        setDataVencimento('');
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.detail || `Erro ${res.status}`);
       }
+      toast.success('Conta cadastrada com sucesso!');
+      onContaAdicionada();
+      setDescricao('');
+      setValor('');
+      setDataVencimento('');
     } catch (error) {
-      console.error("Erro ao adicionar conta:", error);
+      toast.error(`Falha ao cadastrar: ${error.message}`);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -91,55 +102,37 @@ const FormularioConta = ({ onContaAdicionada }) => {
       <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
         <div className="md:col-span-2">
           <label className="block text-sm font-medium text-slate-700 mb-1">Descrição</label>
-          <input
-            type="text"
-            value={descricao}
-            onChange={(e) => setDescricao(e.target.value)}
+          <input type="text" value={descricao} onChange={(e) => setDescricao(e.target.value)}
             className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-            placeholder="Ex: Conta de Luz"
-            required
-          />
+            placeholder="Ex: Conta de Luz" required />
         </div>
         <div>
           <label className="block text-sm font-medium text-slate-700 mb-1">Valor (R$)</label>
-          <input
-            type="number"
-            step="0.01"
-            value={valor}
-            onChange={(e) => setValor(e.target.value)}
+          <input type="number" step="0.01" value={valor} onChange={(e) => setValor(e.target.value)}
             className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-            placeholder="0.00"
-            required
-          />
+            placeholder="0.00" required />
         </div>
         <div>
           <label className="block text-sm font-medium text-slate-700 mb-1">Vencimento</label>
-          <input
-            type="date"
-            value={dataVencimento}
-            onChange={(e) => setDataVencimento(e.target.value)}
+          <input type="date" value={dataVencimento} onChange={(e) => setDataVencimento(e.target.value)}
             className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-            required
-          />
+            required />
         </div>
         <div className="md:col-span-4 flex justify-end mt-2">
-          <button
-            type="submit"
-            className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2.5 px-6 rounded-lg transition-colors"
-          >
+          <button type="submit" disabled={loading}
+            className="bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white font-medium py-2.5 px-6 rounded-lg transition-colors flex items-center gap-2">
+            {loading && (
+              <span className="inline-block w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+            )}
             Cadastrar Conta
           </button>
         </div>
       </form>
     </div>
   );
-};
+}
 
-/**
- * COMPONENTE: ListaContas
- * Responsabilidade: Renderizar a tabela de contas e emitir ações (pagar/excluir).
- */
-const ListaContas = ({ contas, onAtualizarStatus, onDeletarConta }) => {
+function ListaContas({ contas, onAtualizarStatus, onDeletarConta }) {
   return (
     <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
       <div className="p-6 border-b border-slate-200">
@@ -165,7 +158,8 @@ const ListaContas = ({ contas, onAtualizarStatus, onDeletarConta }) => {
               </tr>
             ) : (
               contas.map((conta) => (
-                <tr key={conta.id} className="border-b border-slate-100 hover:bg-slate-50 transition-colors">
+                <tr key={conta.id}
+                  className="border-b border-slate-100 hover:bg-slate-50 transition-colors">
                   <td className="p-4 text-slate-800 font-medium">{conta.descricao}</td>
                   <td className="p-4 text-slate-600">
                     {new Date(conta.data_vencimento).toLocaleDateString('pt-BR', { timeZone: 'UTC' })}
@@ -175,26 +169,24 @@ const ListaContas = ({ contas, onAtualizarStatus, onDeletarConta }) => {
                   </td>
                   <td className="p-4">
                     <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold
-                      ${conta.status === 'Pago' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
+                      ${conta.status === 'Pago'
+                        ? 'bg-emerald-100 text-emerald-700'
+                        : 'bg-amber-100 text-amber-700'}`}>
                       {conta.status === 'Pago' ? <CheckCircle size={14} /> : <Clock size={14} />}
                       {conta.status}
                     </span>
                   </td>
                   <td className="p-4 flex justify-end gap-2">
                     {conta.status === 'Pendente' && (
-                      <button
-                        onClick={() => onAtualizarStatus(conta.id, 'Pago')}
+                      <button onClick={() => onAtualizarStatus(conta.id, 'Pago')}
                         title="Marcar como Pago"
-                        className="p-2 text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
-                      >
+                        className="p-2 text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors">
                         <CheckCircle size={18} />
                       </button>
                     )}
-                    <button
-                      onClick={() => onDeletarConta(conta.id)}
+                    <button onClick={() => onDeletarConta(conta.id)}
                       title="Excluir Conta"
-                      className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                    >
+                      className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors">
                       <Trash2 size={18} />
                     </button>
                   </td>
@@ -206,89 +198,170 @@ const ListaContas = ({ contas, onAtualizarStatus, onDeletarConta }) => {
       </div>
     </div>
   );
-};
+}
 
-/**
- * COMPONENTE PRINCIPAL (Container Component)
- * Responsabilidade: Gerenciar o estado global da tela e coordenar chamadas à API.
- */
-export default function App() {
+function DashboardPage() {
+  const { token } = useAuth();
+  const { toast } = useToast();
   const [contas, setContas] = useState([]);
   const [resumo, setResumo] = useState({ total_pendente: 0, total_pago: 0 });
+  const headers = token ? { Authorization: `Bearer ${token}` } : {};
 
-  // Função para buscar dados da API
-  const carregarDados = async () => {
+  const carregarDados = useCallback(async () => {
     try {
-      // Busca a lista de contas
-      const resContas = await fetch(API_URL);
-      const dataContas = await resContas.json();
-      setContas(dataContas);
-
-      // Busca o resumo do dashboard
-      const resResumo = await fetch(`${API_URL}/resumo/dashboard`);
-      const dataResumo = await resResumo.json();
-      setResumo(dataResumo);
-    } catch (error) {
-      console.error("Erro ao carregar dados da API:", error);
+      const res = await fetch(API_CONTAS, { headers });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const lista = await res.json();
+      setContas(lista);
+      setResumo(
+        lista.reduce(
+          (acc, c) => {
+            c.status === 'Pago'
+              ? (acc.total_pago += c.valor)
+              : (acc.total_pendente += c.valor);
+            return acc;
+          },
+          { total_pendente: 0, total_pago: 0 }
+        )
+      );
+    } catch (err) {
+      toast.error(`Erro ao carregar contas: ${err.message}`);
     }
-  };
+  }, [token]);
 
-  // Executa ao carregar a página
-  useEffect(() => {
-    carregarDados();
-  }, []);
+  useEffect(() => { carregarDados(); }, [carregarDados]);
 
   const handleAtualizarStatus = async (id, novoStatus) => {
     try {
-      await fetch(`${API_URL}/${id}`, {
+      const res = await fetch(`/api/contas/${id}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: novoStatus })
+        headers: { 'Content-Type': 'application/json', ...headers },
+        body: JSON.stringify({ status: novoStatus }),
       });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      toast.success('Status atualizado!');
       carregarDados();
-    } catch (error) {
-      console.error("Erro ao atualizar status:", error);
+    } catch (err) {
+      toast.error(`Falha ao atualizar: ${err.message}`);
     }
   };
 
   const handleDeletarConta = async (id) => {
-    if (!window.confirm("Deseja realmente excluir esta conta?")) return;
+    if (!window.confirm('Deseja realmente excluir esta conta?')) return;
     try {
-      await fetch(`${API_URL}/${id}`, { method: 'DELETE' });
+      const res = await fetch(`/api/contas/${id}`, { method: 'DELETE', headers });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      toast.success('Conta excluída com sucesso.');
       carregarDados();
-    } catch (error) {
-      console.error("Erro ao deletar conta:", error);
+    } catch (err) {
+      toast.error(`Falha ao excluir: ${err.message}`);
     }
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 p-6 md:p-12 font-sans text-slate-900">
-      <div className="max-w-5xl mx-auto">
-
-        {/* Header */}
-        <header className="mb-8">
-          <h1 className="text-3xl font-bold text-slate-800 tracking-tight">
-            Controle Financeiro
-          </h1>
-          <p className="text-slate-500 mt-1">
-            Gestão de contas a pagar - <span className="text-blue-600 font-medium">Padrão N-Tier & React</span>
-          </p>
-        </header>
-
-        {/* Dashboard com Cards Componentizados */}
-        <DashboardCards resumo={resumo} />
-
-        {/* Formulário Componentizado */}
-        <FormularioConta onContaAdicionada={carregarDados} />
-
-        {/* Listagem Componentizada */}
-        <ListaContas
-          contas={contas}
-          onAtualizarStatus={handleAtualizarStatus}
-          onDeletarConta={handleDeletarConta}
-        />
-
-      </div>
+    <div>
+      <header className="mb-8">
+        <h1 className="text-3xl font-bold text-slate-800 tracking-tight">
+          Lançamento de Contas
+        </h1>
+        <p className="text-slate-500 mt-1">Gerencie suas contas a pagar e receber.</p>
+      </header>
+      <DashboardCards resumo={resumo} />
+      <FormularioConta onContaAdicionada={carregarDados} token={token} />
+      <ListaContas
+        contas={contas}
+        onAtualizarStatus={handleAtualizarStatus}
+        onDeletarConta={handleDeletarConta}
+      />
     </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
+//  Placeholders (Etapa 2)
+// ─────────────────────────────────────────────────────────────
+function PlaceholderPage({ title, description, icon }) {
+  return (
+    <div className="flex flex-col items-center justify-center min-h-[60vh] text-center">
+      <div className="w-16 h-16 rounded-2xl bg-indigo-50 flex items-center justify-center mb-4 text-indigo-400">
+        {icon}
+      </div>
+      <h2 className="text-2xl font-bold text-slate-700 mb-2">{title}</h2>
+      <p className="text-slate-500 max-w-sm">{description}</p>
+      <span className="mt-4 inline-block px-4 py-1.5 rounded-full bg-indigo-50 text-indigo-600 text-sm font-medium">
+        Em breve — Etapa 2
+      </span>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
+//  App autenticado
+// ─────────────────────────────────────────────────────────────
+function AuthenticatedApp() {
+  const { toast } = useToast();
+  const [page, setPage] = useState('dashboard');
+
+  useEffect(() => {
+    const shown = sessionStorage.getItem('welcome_shown');
+    if (!shown) {
+      toast.success('Login realizado com sucesso! Bem-vindo.');
+      sessionStorage.setItem('welcome_shown', '1');
+    }
+  }, []);
+
+  const renderPage = () => {
+    switch (page) {
+      case 'dashboard': return <DashboardPage />;
+      case 'parceiros':
+        return (
+          <PlaceholderPage
+            title="Cadastro de Parceiros"
+            description="Gerencie clientes e fornecedores. Será implementado na Etapa 2."
+            icon={<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></svg>}
+          />
+        );
+      case 'categorias':
+        return (
+          <PlaceholderPage
+            title="Cadastro de Categorias"
+            description="Organize suas despesas por categoria. Será implementado na Etapa 2."
+            icon={<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" /></svg>}
+          />
+        );
+      default: return <DashboardPage />;
+    }
+  };
+
+  return (
+    <AppLayout currentPage={page} onNavigate={setPage}>
+      {renderPage()}
+    </AppLayout>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
+//  Roteador público
+// ─────────────────────────────────────────────────────────────
+function Router() {
+  const { user } = useAuth();
+  const [authPage, setAuthPage] = useState('login');
+
+  if (user) return <AuthenticatedApp />;
+  return authPage === 'login'
+    ? <LoginPage onNavigate={setAuthPage} />
+    : <RegisterPage onNavigate={setAuthPage} />;
+}
+
+// ─────────────────────────────────────────────────────────────
+//  Raiz
+// ─────────────────────────────────────────────────────────────
+export default function App() {
+  return (
+    <ToastProvider>
+      <AuthProvider>
+        <Router />
+      </AuthProvider>
+    </ToastProvider>
   );
 }

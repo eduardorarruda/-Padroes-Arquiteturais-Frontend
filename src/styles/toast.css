@@ -1,0 +1,177 @@
+/* ============================================================
+   src/styles/toast.css
+   Sistema de notificações Toast — animado, acessível, elegante.
+   ============================================================ */
+
+/* ── Container (fixed, canto superior direito) ───────────────── */
+.toast-container {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  pointer-events: none;        /* não bloqueia cliques atrás */
+  width: min(420px, calc(100vw - 40px));
+}
+
+/* ── Card do Toast ───────────────────────────────────────────── */
+.toast {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 16px 18px;     /* 18px bottom → espaço para a barra */
+  border-radius: 12px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  box-shadow:
+    0 4px 6px -1px rgba(0,0,0,.06),
+    0 10px 30px -5px rgba(0,0,0,.10);
+  overflow: hidden;
+  pointer-events: all;         /* toasts são clicáveis */
+  will-change: transform, opacity;
+}
+
+/* ── Variantes de cor ─────────────────────────────────────────── */
+.toast--success {
+  border-left: 4px solid #22c55e;
+  background: linear-gradient(to right, #f0fdf4 0%, #ffffff 40%);
+}
+.toast--error {
+  border-left: 4px solid #ef4444;
+  background: linear-gradient(to right, #fef2f2 0%, #ffffff 40%);
+}
+.toast--info {
+  border-left: 4px solid #6366f1;
+  background: linear-gradient(to right, #eef2ff 0%, #ffffff 40%);
+}
+.toast--warning {
+  border-left: 4px solid #f59e0b;
+  background: linear-gradient(to right, #fffbeb 0%, #ffffff 40%);
+}
+
+/* ── Ícone ───────────────────────────────────────────────────── */
+.toast__icon {
+  flex-shrink: 0;
+  margin-top: 1px;
+  display: flex;
+}
+.toast__icon--success { color: #16a34a; }
+.toast__icon--error   { color: #dc2626; }
+.toast__icon--info    { color: #4f46e5; }
+.toast__icon--warning { color: #d97706; }
+
+/* ── Mensagem ────────────────────────────────────────────────── */
+.toast__message {
+  flex: 1;
+  font-family: 'DM Sans', system-ui, sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  color: #1e293b;
+  font-weight: 500;
+}
+
+/* ── Botão fechar ────────────────────────────────────────────── */
+.toast__close {
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #94a3b8;
+  padding: 2px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color .15s, background .15s;
+  margin-top: 1px;
+}
+.toast__close:hover {
+  color: #475569;
+  background: #f1f5f9;
+}
+
+/* ── Barra de progresso ──────────────────────────────────────── */
+.toast__progress {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  height: 3px;
+  width: 100%;
+  transform-origin: left;
+  animation: toastProgress linear forwards;
+  border-radius: 0 0 12px 12px;
+}
+
+.toast--success .toast__progress { background: #22c55e; }
+.toast--error   .toast__progress { background: #ef4444; }
+.toast--info    .toast__progress { background: #6366f1; }
+.toast--warning .toast__progress { background: #f59e0b; }
+
+@keyframes toastProgress {
+  from { transform: scaleX(1); }
+  to   { transform: scaleX(0); }
+}
+
+/* ── Animações de entrada / saída ────────────────────────────── */
+.toast--enter {
+  animation: toastSlideIn .3s cubic-bezier(.22,1,.36,1) both;
+}
+
+.toast--exit {
+  animation: toastSlideOut .3s cubic-bezier(.4,0,1,1) both;
+}
+
+@keyframes toastSlideIn {
+  from {
+    opacity: 0;
+    transform: translateX(calc(100% + 24px)) scale(.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+}
+
+@keyframes toastSlideOut {
+  from {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+    max-height: 120px;
+    margin-bottom: 0;
+  }
+  to {
+    opacity: 0;
+    transform: translateX(calc(100% + 24px)) scale(.9);
+    max-height: 0;
+    margin-bottom: -10px;
+  }
+}
+
+/* ── Responsivo (mobile: bottom center) ─────────────────────── */
+@media (max-width: 520px) {
+  .toast-container {
+    top: auto;
+    bottom: 20px;
+    right: 50%;
+    transform: translateX(50%);
+  }
+
+  @keyframes toastSlideIn {
+    from {
+      opacity: 0;
+      transform: translateY(20px) scale(.95);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+  }
+
+  @keyframes toastSlideOut {
+    from { opacity: 1; transform: translateY(0); }
+    to   { opacity: 0; transform: translateY(20px); }
+  }
+}

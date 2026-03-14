@@ -1,0 +1,483 @@
+/* ============================================================
+   src/styles/auth.css
+   Estilos para as telas de Login e Cadastro.
+   Design: Luxury Fintech — refinado, profissional, premium.
+   ============================================================ */
+
+@import url('https://fonts.googleapis.com/css2?family=Lora:wght@600;700&family=DM+Sans:wght@400;500;600&display=swap');
+
+/* ── Reset base ─────────────────────────────────────────────── */
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+/* ── Variáveis de design ────────────────────────────────────── */
+:root {
+    --brand-900: #0f0f1a;
+    --brand-800: #16162a;
+    --brand-700: #1e1e38;
+    --brand-600: #2a2a50;
+    --accent: #6366f1;
+    --accent-2: #8b5cf6;
+    --accent-glow: rgba(99, 102, 241, 0.35);
+    --text: #e2e8f0;
+    --text-muted: #94a3b8;
+    --text-dark: #1e293b;
+    --surface: #ffffff;
+    --border: #e2e8f0;
+    --radius-lg: 20px;
+    --radius-md: 12px;
+    --radius-sm: 8px;
+    --shadow-sm: 0 1px 3px rgba(0, 0, 0, .06), 0 1px 2px rgba(0, 0, 0, .04);
+    --shadow-md: 0 4px 24px rgba(0, 0, 0, .08), 0 1px 4px rgba(0, 0, 0, .04);
+    --shadow-lg: 0 20px 60px rgba(0, 0, 0, .14);
+    --font-heading: 'Lora', Georgia, serif;
+    --font-body: 'DM Sans', system-ui, sans-serif;
+    --transition: 220ms cubic-bezier(.4, 0, .2, 1);
+}
+
+/* ── Layout principal ───────────────────────────────────────── */
+.auth-page {
+    display: flex;
+    min-height: 100svh;
+    font-family: var(--font-body);
+    background: var(--brand-900);
+}
+
+/* ── Painel esquerdo (marca) ─────────────────────────────────── */
+.auth-brand {
+    flex: 0 0 42%;
+    background: linear-gradient(145deg, var(--brand-800) 0%, var(--brand-700) 60%, #1a1435 100%);
+    border-right: 1px solid rgba(99, 102, 241, 0.15);
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 60px 56px;
+}
+
+@media (max-width: 900px) {
+    .auth-brand {
+        display: none;
+    }
+}
+
+.brand-inner {
+    position: relative;
+    z-index: 2;
+    width: 100%;
+    max-width: 340px;
+    display: flex;
+    flex-direction: column;
+    gap: 40px;
+}
+
+/* Logo */
+.brand-logo {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.brand-name {
+    font-family: var(--font-heading);
+    font-size: 22px;
+    font-weight: 700;
+    color: #ffffff;
+    letter-spacing: -0.3px;
+}
+
+/* Headline da marca */
+.brand-headline {
+    font-family: var(--font-heading);
+    font-size: clamp(26px, 3.5vw, 36px);
+    font-weight: 700;
+    color: #ffffff;
+    line-height: 1.25;
+    letter-spacing: -0.5px;
+}
+
+.brand-sub {
+    font-size: 15px;
+    line-height: 1.65;
+    color: rgba(255, 255, 255, .55);
+    margin-top: 10px;
+    /* era -24px: causava sobreposição com o título */
+}
+
+/* Stats */
+.brand-stats {
+    display: flex;
+    gap: 32px;
+}
+
+.stat-item {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.stat-value {
+    font-size: 24px;
+    font-weight: 700;
+    color: #ffffff;
+    font-family: var(--font-heading);
+}
+
+.stat-label {
+    font-size: 12px;
+    color: rgba(255, 255, 255, .45);
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+}
+
+/* Features (usado no cadastro) */
+.brand-features {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.feature-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 14px;
+    color: rgba(255, 255, 255, .75);
+}
+
+.feature-item svg {
+    flex-shrink: 0;
+    color: #818cf8;
+}
+
+/* Decoração geométrica */
+.geo-circle {
+    position: absolute;
+    border-radius: 50%;
+    border: 1px solid rgba(99, 102, 241, 0.12);
+    pointer-events: none;
+}
+
+.geo-1 {
+    width: 480px;
+    height: 480px;
+    bottom: -180px;
+    right: -140px;
+    background: radial-gradient(circle at 30% 30%, rgba(99, 102, 241, .08), transparent 60%);
+}
+
+.geo-2 {
+    width: 240px;
+    height: 240px;
+    top: -60px;
+    left: -80px;
+    border-color: rgba(139, 92, 246, 0.1);
+}
+
+/* ── Painel direito (formulário) ─────────────────────────────── */
+.auth-form-panel {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 40px 24px;
+    background: #f8fafc;
+}
+
+/* Card do formulário */
+.auth-card {
+    width: 100%;
+    max-width: 440px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 44px 40px;
+    box-shadow: var(--shadow-lg);
+    animation: cardEntrance .4s cubic-bezier(.22, 1, .36, 1) both;
+}
+
+@keyframes cardEntrance {
+    from {
+        opacity: 0;
+        transform: translateY(16px) scale(.98);
+    }
+
+    to {
+        opacity: 1;
+        transform: none;
+    }
+}
+
+.auth-card.shake {
+    animation: shake .5s ease both;
+}
+
+@keyframes shake {
+
+    0%,
+    100% {
+        transform: translateX(0);
+    }
+
+    20% {
+        transform: translateX(-8px);
+    }
+
+    40% {
+        transform: translateX(8px);
+    }
+
+    60% {
+        transform: translateX(-5px);
+    }
+
+    80% {
+        transform: translateX(5px);
+    }
+}
+
+@media (max-width: 520px) {
+    .auth-card {
+        padding: 32px 24px;
+        border-radius: var(--radius-md);
+    }
+}
+
+/* Header do card */
+.auth-card-header {
+    margin-bottom: 32px;
+}
+
+/* Ícone do header (opcional) */
+.auth-header-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 20px;
+    box-shadow: 0 8px 20px var(--accent-glow);
+}
+
+.auth-title {
+    font-family: var(--font-heading);
+    font-size: 26px;
+    font-weight: 700;
+    color: var(--text-dark);
+    letter-spacing: -0.4px;
+    margin-bottom: 6px;
+}
+
+.auth-subtitle {
+    font-size: 15px;
+    color: #64748b;
+    line-height: 1.5;
+}
+
+/* Formulário */
+.auth-form {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+/* Campo */
+.field-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.field-label {
+    font-size: 13.5px;
+    font-weight: 600;
+    color: #374151;
+    letter-spacing: 0.1px;
+}
+
+.input-wrapper {
+    position: relative;
+}
+
+.input-icon {
+    position: absolute;
+    left: 14px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #9ca3af;
+    pointer-events: none;
+    transition: color var(--transition);
+}
+
+.auth-input {
+    width: 100%;
+    padding: 13px 14px 13px 44px;
+    border: 1.5px solid var(--border);
+    border-radius: var(--radius-sm);
+    font-family: var(--font-body);
+    font-size: 15px;
+    color: var(--text-dark);
+    background: #fff;
+    transition: border-color var(--transition), box-shadow var(--transition);
+    outline: none;
+}
+
+.auth-input::placeholder {
+    color: #b0b8c4;
+}
+
+.auth-input:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.12);
+}
+
+.auth-input:focus+.input-icon,
+.input-wrapper:focus-within .input-icon {
+    color: var(--accent);
+}
+
+.auth-input.input-error {
+    border-color: #ef4444;
+    box-shadow: 0 0 0 3px rgba(239, 68, 68, .1);
+}
+
+/* Força da senha */
+.strength-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 6px;
+}
+
+.strength-segments {
+    display: flex;
+    gap: 4px;
+    flex: 1;
+}
+
+.strength-seg {
+    height: 4px;
+    flex: 1;
+    border-radius: 99px;
+    transition: background .3s ease;
+}
+
+.strength-label {
+    font-size: 12px;
+    font-weight: 600;
+    min-width: 64px;
+    text-align: right;
+    transition: color .3s;
+}
+
+/* Erro */
+.auth-error {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 14px;
+    background: #fef2f2;
+    border: 1px solid #fecaca;
+    border-radius: var(--radius-sm);
+    color: #b91c1c;
+    font-size: 14px;
+    animation: errorPop .25s ease both;
+}
+
+@keyframes errorPop {
+    from {
+        opacity: 0;
+        transform: scale(.97);
+    }
+
+    to {
+        opacity: 1;
+        transform: none;
+    }
+}
+
+/* Botão principal */
+.auth-btn {
+    width: 100%;
+    padding: 14px;
+    background: linear-gradient(135deg, var(--accent) 0%, var(--accent-2) 100%);
+    color: #fff;
+    font-family: var(--font-body);
+    font-size: 15.5px;
+    font-weight: 600;
+    border: none;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: opacity var(--transition), transform var(--transition), box-shadow var(--transition);
+    box-shadow: 0 4px 16px var(--accent-glow);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    margin-top: 4px;
+}
+
+.auth-btn:hover:not(:disabled) {
+    opacity: .92;
+    transform: translateY(-1px);
+    box-shadow: 0 8px 24px var(--accent-glow);
+}
+
+.auth-btn:active:not(:disabled) {
+    transform: translateY(0);
+}
+
+.auth-btn:disabled {
+    opacity: .65;
+    cursor: not-allowed;
+}
+
+/* Spinner */
+.btn-spinner {
+    width: 18px;
+    height: 18px;
+    border: 2.5px solid rgba(255, 255, 255, .35);
+    border-top-color: #fff;
+    border-radius: 50%;
+    animation: spin .7s linear infinite;
+    display: inline-block;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* Rodapé de navegação */
+.auth-switch {
+    margin-top: 24px;
+    text-align: center;
+    font-size: 14px;
+    color: #64748b;
+}
+
+.auth-link {
+    background: none;
+    border: none;
+    color: var(--accent);
+    font-weight: 600;
+    font-size: 14px;
+    cursor: pointer;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+    transition: color var(--transition);
+    font-family: var(--font-body);
+}
+
+.auth-link:hover {
+    color: var(--accent-2);
+}
