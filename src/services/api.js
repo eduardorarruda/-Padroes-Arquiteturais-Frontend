@@ -42,7 +42,7 @@ async function request(path, options = {}) {
         headers,
     });
 
-    // Sessão expirada → limpa storage e recarrega
+    // Sessão expirada → limpa storage e dispara evento
     if (response.status === 401) {
         clearToken();
         window.dispatchEvent(new Event('auth:logout'));
@@ -81,18 +81,15 @@ async function requestFormData(path, data) {
 //  AUTH
 // ────────────────────────────────────────────────────────────
 export const authAPI = {
-    /** POST /api/auth/login — retorna { access_token, token_type } */
     login: (email, password) =>
         requestFormData('/api/auth/login', { username: email, password }),
 
-    /** POST /api/auth/registrar — retorna o usuário criado */
     registrar: (nome, email, senha) =>
         request('/api/auth/registrar', {
             method: 'POST',
             body: JSON.stringify({ nome, email, senha }),
         }),
 
-    /** GET /api/auth/me — retorna dados do usuário logado */
     me: () => request('/api/auth/me'),
 };
 
@@ -108,6 +105,9 @@ export const categoriasAPI = {
         }),
 };
 
+// ────────────────────────────────────────────────────────────
+//  PARCEIROS
+// ────────────────────────────────────────────────────────────
 export const parceirosAPI = {
     listar: () => request('/api/parceiros/'),
     criar: (nome, tipo) =>
@@ -121,15 +121,33 @@ export const parceirosAPI = {
 //  CONTAS
 // ────────────────────────────────────────────────────────────
 export const contasAPI = {
+    /** Todas as contas (PAGAR + RECEBER) */
     listar: (skip = 0, limit = 100) =>
         request(`/api/contas/?skip=${skip}&limit=${limit}`),
 
+    /** Somente contas a PAGAR */
+    listarPagar: (skip = 0, limit = 100) =>
+        request(`/api/contas/pagar?skip=${skip}&limit=${limit}`),
+
+    /** Somente contas a RECEBER */
+    listarReceber: (skip = 0, limit = 100) =>
+        request(`/api/contas/receber?skip=${skip}&limit=${limit}`),
+
+    /** Detalhes de uma conta pelo ID */
+    obter: (id) => request(`/api/contas/${id}`),
+
+    /**
+     * Criar conta
+     * Obrigatórios: descricao, valor, data_vencimento, tipo ("PAGAR" | "RECEBER")
+     * Opcionais:    status, categoria_id, parceiro_id
+     */
     criar: (dados) =>
         request('/api/contas/', {
             method: 'POST',
             body: JSON.stringify(dados),
         }),
 
+    /** Atualizar conta — todos os campos são opcionais (PATCH semântico via PUT) */
     atualizar: (id, dados) =>
         request(`/api/contas/${id}`, {
             method: 'PUT',
