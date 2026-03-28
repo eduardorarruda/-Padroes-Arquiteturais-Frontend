@@ -1,7 +1,7 @@
 // ============================================================
 //  src/contexts/AuthContext.jsx
-//  Contexto global de autenticação.
-//  Provê: user, token, login(), registrar(), logout()
+//  BUG 3 FIX: logout adicionado ao array de dependências do
+//  useEffect que escuta 'auth:logout'.
 // ============================================================
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
@@ -21,12 +21,18 @@ export function AuthProvider({ children }) {
     const [token, setToken] = useState(getToken);
     const [loading, setLoading] = useState(false);
 
-    // Escuta o evento disparado pelo interceptor de 401
+    const logout = useCallback(() => {
+        clearToken();
+        setToken(null);
+        setUser(null);
+    }, []);
+
+    // BUG 3 FIX — logout incluído no array de deps
     useEffect(() => {
         const handleLogout = () => logout();
         window.addEventListener('auth:logout', handleLogout);
         return () => window.removeEventListener('auth:logout', handleLogout);
-    }, []);
+    }, [logout]);
 
     // Hidrata o usuário ao montar (caso o token já exista no storage)
     useEffect(() => {
@@ -35,7 +41,7 @@ export function AuthProvider({ children }) {
                 .then((u) => { setUser(u); saveUser(u); })
                 .catch(() => logout());
         }
-    }, []);
+    }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
     const login = useCallback(async (email, password) => {
         setLoading(true);
@@ -60,7 +66,6 @@ export function AuthProvider({ children }) {
         setLoading(true);
         try {
             await authAPI.registrar(nome, email, senha);
-            // Após criar a conta, faz login automaticamente
             return await login(email, senha);
         } catch (err) {
             return { success: false, message: err.message };
@@ -69,12 +74,6 @@ export function AuthProvider({ children }) {
         }
     }, [login]);
 
-    const logout = useCallback(() => {
-        clearToken();
-        setToken(null);
-        setUser(null);
-    }, []);
-
     return (
         <AuthContext.Provider value={{ user, token, loading, login, registrar, logout }}>
             {children}
@@ -82,7 +81,6 @@ export function AuthProvider({ children }) {
     );
 }
 
-// Hook conveniente
 export function useAuth() {
     const ctx = useContext(AuthContext);
     if (!ctx) throw new Error('useAuth deve ser usado dentro de <AuthProvider>');

@@ -4,23 +4,17 @@
 //  Injeta o token JWT automaticamente em cada requisição.
 // ============================================================
 
-// Caminho relativo → o proxy do Vite (vite.config.js) encaminha
-// para http://127.0.0.1:8000 sem expor o host ao browser (resolve o CORS).
-// Em produção, defina: VITE_API_URL=https://sua-api.com no .env
 const BASE_URL = import.meta.env.VITE_API_URL ?? '';
 
-// ── Chave usada para persistência no localStorage ────────────
 const TOKEN_KEY = 'fintrack_token';
 const USER_KEY = 'fintrack_user';
 
-// ── Helpers de token ─────────────────────────────────────────
 export const getToken = () => localStorage.getItem(TOKEN_KEY);
 export const saveToken = (token) => localStorage.setItem(TOKEN_KEY, token);
 export const clearToken = () => {
     localStorage.removeItem(TOKEN_KEY);
     localStorage.removeItem(USER_KEY);
 };
-
 export const getStoredUser = () => {
     try { return JSON.parse(localStorage.getItem(USER_KEY)); } catch { return null; }
 };
@@ -37,12 +31,8 @@ async function request(path, options = {}) {
         ...options.headers,
     };
 
-    const response = await fetch(`${BASE_URL}${path}`, {
-        ...options,
-        headers,
-    });
+    const response = await fetch(`${BASE_URL}${path}`, { ...options, headers });
 
-    // Sessão expirada → limpa storage e dispara evento
     if (response.status === 401) {
         clearToken();
         window.dispatchEvent(new Event('auth:logout'));
@@ -54,7 +44,6 @@ async function request(path, options = {}) {
         throw new Error(errorData.detail || `Erro ${response.status}`);
     }
 
-    // 204 No Content
     if (response.status === 204) return null;
     return response.json();
 }
@@ -62,7 +51,6 @@ async function request(path, options = {}) {
 // ── Versão especial para form-data (login OAuth2) ─────────────
 async function requestFormData(path, data) {
     const body = new URLSearchParams(data);
-
     const response = await fetch(`${BASE_URL}${path}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -98,10 +86,22 @@ export const authAPI = {
 // ────────────────────────────────────────────────────────────
 export const categoriasAPI = {
     listar: () => request('/api/categorias/'),
+
     criar: (descricao) =>
         request('/api/categorias/', {
             method: 'POST',
             body: JSON.stringify({ descricao }),
+        }),
+
+    // BUG 1 FIX — usa request() para injetar JWT
+    deletar: (id) =>
+        request(`/api/categorias/${id}`, { method: 'DELETE' }),
+
+    // FEATURE 2 — editar categoria
+    atualizar: (id, dados) =>
+        request(`/api/categorias/${id}`, {
+            method: 'PUT',
+            body: JSON.stringify(dados),
         }),
 };
 
@@ -110,10 +110,22 @@ export const categoriasAPI = {
 // ────────────────────────────────────────────────────────────
 export const parceirosAPI = {
     listar: () => request('/api/parceiros/'),
+
     criar: (nome, tipo) =>
         request('/api/parceiros/', {
             method: 'POST',
             body: JSON.stringify({ nome, tipo }),
+        }),
+
+    // BUG 1 FIX — usa request() para injetar JWT
+    deletar: (id) =>
+        request(`/api/parceiros/${id}`, { method: 'DELETE' }),
+
+    // FEATURE 2 — editar parceiro
+    atualizar: (id, dados) =>
+        request(`/api/parceiros/${id}`, {
+            method: 'PUT',
+            body: JSON.stringify(dados),
         }),
 };
 
@@ -121,33 +133,23 @@ export const parceirosAPI = {
 //  CONTAS
 // ────────────────────────────────────────────────────────────
 export const contasAPI = {
-    /** Todas as contas (PAGAR + RECEBER) */
     listar: (skip = 0, limit = 100) =>
         request(`/api/contas/?skip=${skip}&limit=${limit}`),
 
-    /** Somente contas a PAGAR */
     listarPagar: (skip = 0, limit = 100) =>
         request(`/api/contas/pagar?skip=${skip}&limit=${limit}`),
 
-    /** Somente contas a RECEBER */
     listarReceber: (skip = 0, limit = 100) =>
         request(`/api/contas/receber?skip=${skip}&limit=${limit}`),
 
-    /** Detalhes de uma conta pelo ID */
     obter: (id) => request(`/api/contas/${id}`),
 
-    /**
-     * Criar conta
-     * Obrigatórios: descricao, valor, data_vencimento, tipo ("PAGAR" | "RECEBER")
-     * Opcionais:    status, categoria_id, parceiro_id
-     */
     criar: (dados) =>
         request('/api/contas/', {
             method: 'POST',
             body: JSON.stringify(dados),
         }),
 
-    /** Atualizar conta — todos os campos são opcionais (PATCH semântico via PUT) */
     atualizar: (id, dados) =>
         request(`/api/contas/${id}`, {
             method: 'PUT',

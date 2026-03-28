@@ -1,9 +1,7 @@
 // ============================================================
 //  src/components/AppLayout.jsx
-//  Layout base das telas internas:
-//  - Sidebar fixa no desktop
-//  - Drawer + overlay no mobile (menu hamburguer)
-//  - Topbar com nome do usuário e toggle mobile
+//  Sidebar fixa no desktop, drawer + overlay no mobile.
+//  NAV atualizado: dashboard | contas | parceiros | categorias
 // ============================================================
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -11,13 +9,22 @@ import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 import '../styles/layout.css';
 
-// ── Ícones de navegação ────────────────────────────────────────
+// ── Ícones ────────────────────────────────────────────────────
 const NavIcons = {
     dashboard: (
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
             stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-            <rect x="3" y="3" width="7" height="9" /><rect x="14" y="3" width="7" height="5" />
-            <rect x="14" y="12" width="7" height="9" /><rect x="3" y="16" width="7" height="5" />
+            <rect x="3" y="3" width="7" height="9" />
+            <rect x="14" y="3" width="7" height="5" />
+            <rect x="14" y="12" width="7" height="9" />
+            <rect x="3" y="16" width="7" height="5" />
+        </svg>
+    ),
+    contas: (
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="2" y="5" width="20" height="14" rx="2" />
+            <line x1="2" y1="10" x2="22" y2="10" />
         </svg>
     ),
     parceiros: (
@@ -25,7 +32,8 @@ const NavIcons = {
             stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
             <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
             <circle cx="9" cy="7" r="4" />
-            <path d="M23 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" />
+            <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+            <path d="M16 3.13a4 4 0 0 1 0 7.75" />
         </svg>
     ),
     categorias: (
@@ -59,7 +67,6 @@ const NavIcons = {
     ),
 };
 
-// ── Logo da aplicação ──────────────────────────────────────────
 function Logo() {
     return (
         <div className="sidebar__logo">
@@ -81,11 +88,18 @@ function Logo() {
 }
 
 // ── Itens de navegação ─────────────────────────────────────────
+// 'dashboard' → DashboardPage (gráficos)
+// 'contas'    → ContasPage    (lançamentos)
 const NAV_ITEMS = [
     {
         id: 'dashboard',
-        label: 'Lançamento de Contas',
+        label: 'Dashboard',
         icon: NavIcons.dashboard,
+    },
+    {
+        id: 'contas',
+        label: 'Lançamento de Contas',
+        icon: NavIcons.contas,
     },
     {
         id: 'parceiros',
@@ -99,13 +113,11 @@ const NAV_ITEMS = [
     },
 ];
 
-// ── Componente principal ───────────────────────────────────────
 export default function AppLayout({ currentPage, onNavigate, children }) {
     const { user, logout } = useAuth();
     const { toast } = useToast();
     const [mobileOpen, setMobileOpen] = useState(false);
 
-    // Fecha o drawer ao redimensionar para desktop
     useEffect(() => {
         const mq = window.matchMedia('(min-width: 1024px)');
         const handler = (e) => { if (e.matches) setMobileOpen(false); };
@@ -113,7 +125,6 @@ export default function AppLayout({ currentPage, onNavigate, children }) {
         return () => mq.removeEventListener('change', handler);
     }, []);
 
-    // Trava scroll do body quando drawer está aberto
     useEffect(() => {
         document.body.style.overflow = mobileOpen ? 'hidden' : '';
         return () => { document.body.style.overflow = ''; };
@@ -129,12 +140,10 @@ export default function AppLayout({ currentPage, onNavigate, children }) {
         toast.info('Você saiu da sua conta.');
     }, [logout, toast]);
 
-    // ── Conteúdo da sidebar ──────────────────────────────────────
     const SidebarContent = () => (
         <div className="sidebar__inner">
             <Logo />
 
-            {/* Navegação principal */}
             <nav className="sidebar__nav" aria-label="Navegação principal">
                 <ul className="sidebar__nav-list">
                     {NAV_ITEMS.map((item) => {
@@ -156,7 +165,6 @@ export default function AppLayout({ currentPage, onNavigate, children }) {
                 </ul>
             </nav>
 
-            {/* Rodapé da sidebar: usuário + logout */}
             <div className="sidebar__footer">
                 <div className="sidebar__user">
                     <div className="sidebar__user-avatar">
@@ -182,21 +190,18 @@ export default function AppLayout({ currentPage, onNavigate, children }) {
 
     return (
         <div className="app-layout">
-            {/* ── Sidebar desktop ───────────────────────────────────── */}
+            {/* Sidebar desktop */}
             <aside className="sidebar sidebar--desktop" aria-label="Menu lateral">
                 <SidebarContent />
             </aside>
 
-            {/* ── Drawer mobile ─────────────────────────────────────── */}
+            {/* Drawer mobile */}
             <>
-                {/* Overlay */}
                 <div
                     className={`sidebar-overlay ${mobileOpen ? 'sidebar-overlay--visible' : ''}`}
                     onClick={() => setMobileOpen(false)}
                     aria-hidden="true"
                 />
-
-                {/* Drawer */}
                 <aside
                     className={`sidebar sidebar--mobile ${mobileOpen ? 'sidebar--mobile-open' : ''}`}
                     aria-label="Menu lateral"
@@ -206,9 +211,8 @@ export default function AppLayout({ currentPage, onNavigate, children }) {
                 </aside>
             </>
 
-            {/* ── Área principal ────────────────────────────────────── */}
+            {/* Área principal */}
             <div className="app-layout__main">
-                {/* Topbar mobile */}
                 <header className="topbar">
                     <button
                         className="topbar__menu-btn"
@@ -218,15 +222,12 @@ export default function AppLayout({ currentPage, onNavigate, children }) {
                     >
                         {mobileOpen ? NavIcons.close : NavIcons.menu}
                     </button>
-
                     <Logo />
-
                     <div className="topbar__user-avatar">
                         {(user?.nome ?? 'U')[0].toUpperCase()}
                     </div>
                 </header>
 
-                {/* Conteúdo da página */}
                 <main className="app-layout__content">
                     {children}
                 </main>

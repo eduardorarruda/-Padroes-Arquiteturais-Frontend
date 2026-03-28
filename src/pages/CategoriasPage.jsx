@@ -1,14 +1,16 @@
 // ============================================================
 //  src/pages/CategoriasPage.jsx
-//  Cadastro de Categorias de despesas
+//  BUG 1 FIX : handleDeletar usa categoriasAPI.deletar()
+//  FEATURE 1  : ConfirmModal substitui window.confirm()
+//  FEATURE 2  : Edição inline (modal) com PUT
 // ============================================================
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { PlusCircle, Trash2, Tag, Search, FolderOpen } from 'lucide-react';
+import { PlusCircle, Trash2, Tag, Search, FolderOpen, Pencil, Check, X } from 'lucide-react';
 import { categoriasAPI } from '../services/api';
 import { useToast } from '../contexts/ToastContext';
+import ConfirmModal from '../components/ConfirmModal';
 
-// Paleta de cores para chips de categoria (cicla automaticamente)
 const PALETTE = [
     { bg: 'bg-blue-100', text: 'text-blue-700', dot: 'bg-blue-500' },
     { bg: 'bg-emerald-100', text: 'text-emerald-700', dot: 'bg-emerald-500' },
@@ -19,12 +21,8 @@ const PALETTE = [
     { bg: 'bg-orange-100', text: 'text-orange-700', dot: 'bg-orange-500' },
     { bg: 'bg-teal-100', text: 'text-teal-700', dot: 'bg-teal-500' },
 ];
+function getColor(index) { return PALETTE[index % PALETTE.length]; }
 
-function getColor(index) {
-    return PALETTE[index % PALETTE.length];
-}
-
-// ── Chip de categoria ──────────────────────────────────────────
 function CategoriaChip({ descricao, index }) {
     const c = getColor(index);
     return (
@@ -32,6 +30,86 @@ function CategoriaChip({ descricao, index }) {
             <span className={`w-1.5 h-1.5 rounded-full ${c.dot}`} />
             {descricao}
         </span>
+    );
+}
+
+// ── Modal de edição inline ─────────────────────────────────────
+function ModalEdicaoCategoria({ categoria, onSalvo, onFechar }) {
+    const { toast } = useToast();
+    const [descricao, setDescricao] = useState(categoria.descricao);
+    const [loading, setLoading] = useState(false);
+
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        if (!descricao.trim()) return;
+        setLoading(true);
+        try {
+            await categoriasAPI.atualizar(categoria.id, { descricao: descricao.trim() });
+            toast.success('Categoria atualizada com sucesso!');
+            onSalvo();
+        } catch (err) {
+            toast.error(`Erro ao atualizar: ${err.message}`);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        const esc = (e) => { if (e.key === 'Escape') onFechar(); };
+        document.addEventListener('keydown', esc);
+        return () => document.removeEventListener('keydown', esc);
+    }, [onFechar]);
+
+    return (
+        <div
+            onClick={(e) => { if (e.target === e.currentTarget) onFechar(); }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4"
+            style={{ background: 'rgba(15,15,26,.55)', backdropFilter: 'blur(3px)' }}
+        >
+            <div
+                className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6"
+                style={{ animation: 'confirmIn .22s cubic-bezier(.22,1,.36,1) both' }}
+            >
+                <div className="flex items-center justify-between mb-4">
+                    <h2 className="text-base font-bold text-slate-800 flex items-center gap-2">
+                        <Pencil size={16} className="text-emerald-600" />
+                        Editar Categoria
+                    </h2>
+                    <button onClick={onFechar} className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors">
+                        <X size={16} />
+                    </button>
+                </div>
+
+                <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+                    <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-1">Descrição</label>
+                        <input
+                            type="text"
+                            value={descricao}
+                            onChange={(e) => setDescricao(e.target.value)}
+                            className="w-full px-3 py-2.5 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition"
+                            maxLength={60}
+                            autoFocus
+                            required
+                        />
+                    </div>
+                    <div className="flex gap-3">
+                        <button type="button" onClick={onFechar}
+                            className="flex-1 px-4 py-2.5 border border-slate-300 text-slate-700 text-sm font-medium rounded-lg hover:bg-slate-50 transition-colors">
+                            Cancelar
+                        </button>
+                        <button type="submit" disabled={loading || !descricao.trim()}
+                            className="flex-1 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-white text-sm font-semibold rounded-lg transition-colors flex items-center justify-center gap-2">
+                            {loading
+                                ? <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                                : <Check size={15} />}
+                            Salvar
+                        </button>
+                    </div>
+                </form>
+            </div>
+            <style>{`@keyframes confirmIn{from{opacity:0;transform:scale(.94) translateY(8px)}to{opacity:1;transform:none}}`}</style>
+        </div>
     );
 }
 
@@ -63,12 +141,9 @@ function FormularioCategoria({ onAdicionada }) {
                 <PlusCircle className="text-emerald-600" size={18} />
                 Nova Categoria
             </h2>
-
             <form onSubmit={handleSubmit} className="flex flex-col sm:flex-row gap-3 items-end">
                 <div className="flex-1">
-                    <label className="block text-sm font-medium text-slate-700 mb-1">
-                        Descrição da categoria
-                    </label>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Descrição da categoria</label>
                     <input
                         type="text"
                         value={descricao}
@@ -79,12 +154,9 @@ function FormularioCategoria({ onAdicionada }) {
                         required
                     />
                     {descricao.length > 40 && (
-                        <p className="text-xs text-slate-400 mt-1 text-right">
-                            {descricao.length}/60
-                        </p>
+                        <p className="text-xs text-slate-400 mt-1 text-right">{descricao.length}/60</p>
                     )}
                 </div>
-
                 <button
                     type="submit"
                     disabled={loading || !descricao.trim()}
@@ -100,35 +172,34 @@ function FormularioCategoria({ onAdicionada }) {
     );
 }
 
-// ── Grid de categorias (visual mode) ──────────────────────────
-function GridCategorias({ categorias, onDeletar }) {
+// ── Grid ───────────────────────────────────────────────────────
+function GridCategorias({ categorias, onEditar, onDeletar }) {
     return (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
             {categorias.map((cat, index) => {
                 const c = getColor(index);
                 return (
-                    <div
-                        key={cat.id}
-                        className="group bg-white border border-slate-200 rounded-xl p-4 flex items-center justify-between hover:shadow-md transition-shadow"
-                    >
+                    <div key={cat.id}
+                        className="group bg-white border border-slate-200 rounded-xl p-4 flex items-center justify-between hover:shadow-md transition-shadow">
                         <div className="flex items-center gap-3 min-w-0">
                             <div className={`w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 ${c.bg}`}>
                                 <Tag size={16} className={c.text} />
                             </div>
                             <div className="min-w-0">
-                                <p className="text-sm font-semibold text-slate-800 truncate">
-                                    {cat.descricao}
-                                </p>
+                                <p className="text-sm font-semibold text-slate-800 truncate">{cat.descricao}</p>
                                 <p className="text-xs text-slate-400">#{cat.id}</p>
                             </div>
                         </div>
-                        <button
-                            onClick={() => onDeletar(cat.id, cat.descricao)}
-                            title="Excluir categoria"
-                            className="p-1.5 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors opacity-0 group-hover:opacity-100 flex-shrink-0 ml-2"
-                        >
-                            <Trash2 size={14} />
-                        </button>
+                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 flex-shrink-0 ml-2">
+                            <button onClick={() => onEditar(cat)} title="Editar"
+                                className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors">
+                                <Pencil size={14} />
+                            </button>
+                            <button onClick={() => onDeletar(cat)} title="Excluir"
+                                className="p-1.5 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors">
+                                <Trash2 size={14} />
+                            </button>
+                        </div>
                     </div>
                 );
             })}
@@ -136,8 +207,8 @@ function GridCategorias({ categorias, onDeletar }) {
     );
 }
 
-// ── Tabela de categorias (list mode) ──────────────────────────
-function TabelaCategorias({ categorias, onDeletar }) {
+// ── Tabela ─────────────────────────────────────────────────────
+function TabelaCategorias({ categorias, onEditar, onDeletar }) {
     return (
         <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
             <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
@@ -165,13 +236,16 @@ function TabelaCategorias({ categorias, onDeletar }) {
                                     <span className="text-xs text-slate-400 font-mono">#{cat.id}</span>
                                 </td>
                                 <td className="px-6 py-3.5 text-right">
-                                    <button
-                                        onClick={() => onDeletar(cat.id, cat.descricao)}
-                                        title="Excluir categoria"
-                                        className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
-                                    >
-                                        <Trash2 size={15} />
-                                    </button>
+                                    <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100">
+                                        <button onClick={() => onEditar(cat)} title="Editar"
+                                            className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors">
+                                            <Pencil size={14} />
+                                        </button>
+                                        <button onClick={() => onDeletar(cat)} title="Excluir"
+                                            className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors">
+                                            <Trash2 size={15} />
+                                        </button>
+                                    </div>
                                 </td>
                             </tr>
                         ))}
@@ -188,7 +262,12 @@ export default function CategoriasPage() {
     const [categorias, setCategorias] = useState([]);
     const [carregando, setCarregando] = useState(true);
     const [busca, setBusca] = useState('');
-    const [viewMode, setViewMode] = useState('grid'); // 'grid' | 'list'
+    const [viewMode, setViewMode] = useState('grid');
+
+    // Estado do ConfirmModal
+    const [confirm, setConfirm] = useState({ isOpen: false, cat: null });
+    // Estado do modal de edição
+    const [editando, setEditando] = useState(null);
 
     const carregar = useCallback(async () => {
         try {
@@ -203,11 +282,18 @@ export default function CategoriasPage() {
 
     useEffect(() => { carregar(); }, [carregar]);
 
-    const handleDeletar = async (id, descricao) => {
-        if (!window.confirm(`Deseja realmente excluir a categoria "${descricao}"?`)) return;
+    // Abre o ConfirmModal em vez de window.confirm
+    const handleDeletarSolicitado = (cat) => {
+        setConfirm({ isOpen: true, cat });
+    };
+
+    // Confirmado: chama API com JWT via categoriasAPI.deletar()
+    const handleDeletarConfirmado = async () => {
+        const { cat } = confirm;
+        setConfirm({ isOpen: false, cat: null });
         try {
-            await fetch(`/api/categorias/${id}`, { method: 'DELETE' });
-            toast.success(`Categoria "${descricao}" removida.`);
+            await categoriasAPI.deletar(cat.id);   // BUG 1 FIX
+            toast.success(`Categoria "${cat.descricao}" removida.`);
             carregar();
         } catch (err) {
             toast.error(`Falha ao excluir: ${err.message}`);
@@ -220,33 +306,40 @@ export default function CategoriasPage() {
 
     return (
         <div>
-            {/* Cabeçalho */}
+            {/* ConfirmModal — FEATURE 1 */}
+            <ConfirmModal
+                isOpen={confirm.isOpen}
+                title="Excluir categoria"
+                message={`Deseja realmente excluir a categoria "${confirm.cat?.descricao}"? Esta ação não pode ser desfeita.`}
+                danger
+                onConfirm={handleDeletarConfirmado}
+                onCancel={() => setConfirm({ isOpen: false, cat: null })}
+            />
+
+            {/* Modal de edição — FEATURE 2 */}
+            {editando && (
+                <ModalEdicaoCategoria
+                    categoria={editando}
+                    onSalvo={() => { setEditando(null); carregar(); }}
+                    onFechar={() => setEditando(null)}
+                />
+            )}
+
             <header className="mb-6">
-                <h1 className="text-2xl font-bold text-slate-800 tracking-tight">
-                    Cadastro de Categorias
-                </h1>
-                <p className="text-slate-500 mt-1 text-sm">
-                    Organize suas despesas e receitas por categorias personalizadas.
-                </p>
+                <h1 className="text-2xl font-bold text-slate-800 tracking-tight">Cadastro de Categorias</h1>
+                <p className="text-slate-500 mt-1 text-sm">Organize suas despesas e receitas por categorias personalizadas.</p>
             </header>
 
-            {/* Card de resumo */}
             <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5 mb-6 flex items-center gap-4 w-fit">
-                <div className="p-2.5 rounded-lg bg-emerald-50 text-emerald-600">
-                    <FolderOpen size={22} />
-                </div>
+                <div className="p-2.5 rounded-lg bg-emerald-50 text-emerald-600"><FolderOpen size={22} /></div>
                 <div>
                     <p className="text-xs text-slate-500 font-medium">Total de Categorias</p>
-                    <p className="text-2xl font-bold text-slate-800">
-                        {carregando ? '—' : categorias.length}
-                    </p>
+                    <p className="text-2xl font-bold text-slate-800">{carregando ? '—' : categorias.length}</p>
                 </div>
             </div>
 
-            {/* Formulário */}
             <FormularioCategoria onAdicionada={carregar} />
 
-            {/* Barra de ferramentas */}
             {categorias.length > 0 && (
                 <div className="flex flex-col sm:flex-row gap-3 mb-4 items-center">
                     <div className="relative flex-1">
@@ -259,25 +352,19 @@ export default function CategoriasPage() {
                             className="w-full pl-9 pr-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition"
                         />
                     </div>
-
-                    {/* Toggle de visualização */}
                     <div className="flex border border-slate-300 rounded-lg overflow-hidden">
-                        <button
-                            onClick={() => setViewMode('grid')}
+                        <button onClick={() => setViewMode('grid')}
                             className={`px-3 py-2 text-xs font-medium transition-colors flex items-center gap-1.5
-                ${viewMode === 'grid' ? 'bg-slate-800 text-white' : 'bg-white text-slate-600 hover:bg-slate-50'}`}
-                        >
+                                ${viewMode === 'grid' ? 'bg-slate-800 text-white' : 'bg-white text-slate-600 hover:bg-slate-50'}`}>
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                                 <rect x="3" y="3" width="7" height="7" /><rect x="14" y="3" width="7" height="7" />
                                 <rect x="3" y="14" width="7" height="7" /><rect x="14" y="14" width="7" height="7" />
                             </svg>
                             Grade
                         </button>
-                        <button
-                            onClick={() => setViewMode('list')}
+                        <button onClick={() => setViewMode('list')}
                             className={`px-3 py-2 text-xs font-medium transition-colors flex items-center gap-1.5
-                ${viewMode === 'list' ? 'bg-slate-800 text-white' : 'bg-white text-slate-600 hover:bg-slate-50'}`}
-                        >
+                                ${viewMode === 'list' ? 'bg-slate-800 text-white' : 'bg-white text-slate-600 hover:bg-slate-50'}`}>
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                                 <line x1="3" y1="6" x2="21" y2="6" /><line x1="3" y1="12" x2="21" y2="12" />
                                 <line x1="3" y1="18" x2="21" y2="18" />
@@ -288,7 +375,6 @@ export default function CategoriasPage() {
                 </div>
             )}
 
-            {/* Conteúdo */}
             {carregando ? (
                 <div className="flex items-center justify-center py-16">
                     <span className="w-6 h-6 border-2 border-emerald-300 border-t-emerald-600 rounded-full animate-spin" />
@@ -307,9 +393,17 @@ export default function CategoriasPage() {
                     <p className="text-slate-500">Nenhuma categoria encontrada para "{busca}".</p>
                 </div>
             ) : viewMode === 'grid' ? (
-                <GridCategorias categorias={filtradas} onDeletar={handleDeletar} />
+                <GridCategorias
+                    categorias={filtradas}
+                    onEditar={setEditando}
+                    onDeletar={handleDeletarSolicitado}
+                />
             ) : (
-                <TabelaCategorias categorias={filtradas} onDeletar={handleDeletar} />
+                <TabelaCategorias
+                    categorias={filtradas}
+                    onEditar={setEditando}
+                    onDeletar={handleDeletarSolicitado}
+                />
             )}
         </div>
     );
