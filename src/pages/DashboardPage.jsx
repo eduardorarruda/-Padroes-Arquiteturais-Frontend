@@ -8,8 +8,8 @@
 // ============================================================
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { BarChart2, PieChart, CalendarClock } from 'lucide-react';
-import { contasAPI, categoriasAPI } from '../services/api';
+import { BarChart2, PieChart, CalendarClock, Wallet, CreditCard, ArrowRight } from 'lucide-react';
+import { contasAPI, categoriasAPI, contasCorrentesAPI, cartoesAPI } from '../services/api';
 import { useToast } from '../contexts/ToastContext';
 import ResumoCards from '../components/ResumoCards';
 
@@ -240,24 +240,30 @@ export default function DashboardPage() {
     const { toast } = useToast();
     const [contas, setContas] = useState([]);
     const [categorias, setCategorias] = useState([]);
+    const [contasCorrentes, setContasCorrentes] = useState([]);
+    const [cartoes, setCartoes] = useState([]);
     const [carregando, setCarregando] = useState(true);
 
     const catMap = Object.fromEntries(categorias.map((c) => [c.id, c]));
 
     const carregar = useCallback(async () => {
         try {
-            const [c, cats] = await Promise.all([
+            const [c, cats, ccs, cards] = await Promise.all([
                 contasAPI.listar(0, 500),
                 categoriasAPI.listar(),
+                contasCorrentesAPI.listar(),
+                cartoesAPI.listar(),
             ]);
             setContas(Array.isArray(c) ? c : []);
             setCategorias(Array.isArray(cats) ? cats : []);
+            setContasCorrentes(Array.isArray(ccs) ? ccs : []);
+            setCartoes(Array.isArray(cards) ? cards : []);
         } catch (err) {
             toast.error(`Erro ao carregar dashboard: ${err.message}`);
         } finally {
             setCarregando(false);
         }
-    }, []);
+    }, [toast]);
 
     useEffect(() => { carregar(); }, [carregar]);
 
@@ -278,14 +284,92 @@ export default function DashboardPage() {
             </header>
 
             {/* a) Cards de resumo */}
-            <ResumoCards contas={contas} />
+            <ResumoCards contas={contas} contasCorrentes={contasCorrentes} cartoes={cartoes} />
+
+            {/* NOVA SEÇÃO: Minhas Carteiras e Cartões */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                
+                {/* Contas Correntes */}
+                <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
+                    <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50">
+                        <div className="flex items-center gap-2">
+                            <Wallet size={18} className="text-indigo-500" />
+                            <h2 className="text-sm font-bold text-slate-700 uppercase tracking-wider">Minhas Carteiras</h2>
+                        </div>
+                    </div>
+                    <div className="p-5 flex-1 max-h-[280px] overflow-y-auto bg-slate-50/50">
+                        {contasCorrentes.length === 0 ? (
+                            <p className="text-center text-slate-400 text-sm mt-8">Nenhuma conta corrente cadastrada.</p>
+                        ) : (
+                            <div className="flex flex-col gap-3">
+                                {contasCorrentes.map((cc) => (
+                                    <div key={cc.id} className="flex items-center justify-between bg-white p-4 rounded-xl shadow-sm border border-slate-100 hover:border-indigo-100 transition-colors">
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-10 h-10 rounded-full bg-indigo-50 flex items-center justify-center flex-shrink-0">
+                                                <Wallet size={16} className="text-indigo-600" />
+                                            </div>
+                                            <div>
+                                                <p className="text-sm font-bold text-slate-800">{cc.descricao}</p>
+                                                <p className="text-xs text-slate-400">CC #{cc.id}</p>
+                                            </div>
+                                        </div>
+                                        <div className="text-right">
+                                            <p className={`text-sm font-black tracking-tight ${Number(cc.saldo) >= 0 ? 'text-indigo-600' : 'text-red-500'}`}>
+                                                R$ {Number(cc.saldo ?? 0).toFixed(2)}
+                                            </p>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                </div>
+
+                {/* Cartões de Crédito */}
+                <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
+                    <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50">
+                        <div className="flex items-center gap-2">
+                            <CreditCard size={18} className="text-violet-500" />
+                            <h2 className="text-sm font-bold text-slate-700 uppercase tracking-wider">Meus Cartões</h2>
+                        </div>
+                    </div>
+                    <div className="p-5 flex-1 max-h-[280px] overflow-y-auto bg-slate-50/50">
+                        {cartoes.length === 0 ? (
+                            <p className="text-center text-slate-400 text-sm mt-8">Nenhum cartão de crédito cadastrado.</p>
+                        ) : (
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                {cartoes.map((card) => (
+                                    <div key={card.id} className="bg-gradient-to-br from-slate-800 to-violet-950 p-4 rounded-xl shadow-md border border-slate-700 relative overflow-hidden group">
+                                        <div className="absolute top-0 right-0 -mr-4 -mt-4 w-16 h-16 bg-white opacity-5 rounded-full blur-xl" />
+                                        <div className="flex justify-between items-start mb-4">
+                                            <CreditCard size={20} className="text-violet-300" />
+                                            <p className="text-[10px] uppercase tracking-wider text-slate-400 font-bold">Venc. Dia {card.dia_vencimento}</p>
+                                        </div>
+                                        <h3 className="text-sm font-bold text-white tracking-wide mb-1 truncate">{card.nome}</h3>
+                                        <div className="flex justify-between items-end">
+                                            <div>
+                                                <p className="text-[10px] uppercase text-violet-300 font-semibold mb-0.5">Limite Total</p>
+                                                <p className="text-sm font-black text-white">R$ {Number(card.limite).toFixed(2)}</p>
+                                            </div>
+                                            <div className="text-right">
+                                                <p className="text-[10px] uppercase text-violet-300 font-semibold mb-0.5">Disponível</p>
+                                                <p className="text-sm font-black text-emerald-400">R$ {Number(card.limite_livre ?? 0).toFixed(2)}</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                </div>
+            </div>
 
             {/* b + c) Gráficos lado a lado */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
 
                 {/* Gráfico de barras */}
-                <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
-                    <div className="flex items-center gap-2 mb-4">
+                <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5 flex flex-col items-center">
+                    <div className="w-full flex items-center gap-2 mb-4">
                         <BarChart2 size={18} className="text-indigo-500" />
                         <h2 className="text-sm font-bold text-slate-700">Contas por Mês</h2>
                     </div>
@@ -293,8 +377,8 @@ export default function DashboardPage() {
                 </div>
 
                 {/* Gráfico de rosca */}
-                <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
-                    <div className="flex items-center gap-2 mb-4">
+                <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5 flex flex-col items-center justify-center">
+                    <div className="w-full flex items-center gap-2 mb-4">
                         <PieChart size={18} className="text-violet-500" />
                         <h2 className="text-sm font-bold text-slate-700">Distribuição por Categoria</h2>
                     </div>
@@ -304,9 +388,11 @@ export default function DashboardPage() {
 
             {/* d) Próximos vencimentos */}
             <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
-                <div className="flex items-center gap-2 mb-4">
-                    <CalendarClock size={18} className="text-amber-500" />
-                    <h2 className="text-sm font-bold text-slate-700">Próximos Vencimentos (Pendentes)</h2>
+                <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-2">
+                        <CalendarClock size={18} className="text-amber-500" />
+                        <h2 className="text-sm font-bold text-slate-700">Próximos Vencimentos (Pendentes)</h2>
+                    </div>
                 </div>
                 <ProximosVencimentos contas={contas} catMap={catMap} />
             </div>

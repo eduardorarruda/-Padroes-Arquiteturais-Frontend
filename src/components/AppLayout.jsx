@@ -42,6 +42,22 @@ const NavIcons = {
             <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
         </svg>
     ),
+    contasCorrentes: (
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="2" y="4" width="20" height="16" rx="2" />
+            <path d="M2 10h20" />
+            <path d="M12 4v16" />
+        </svg>
+    ),
+    cartoes: (
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="1" y="4" width="22" height="16" rx="2" ry="2" />
+            <line x1="1" y1="10" x2="23" y2="10" />
+            <line x1="5" y1="15" x2="10" y2="15" />
+        </svg>
+    ),
     logout: (
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
             stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
@@ -110,6 +126,16 @@ const NAV_ITEMS = [
         id: 'categorias',
         label: 'Cadastro de Categorias',
         icon: NavIcons.categorias,
+    },
+    {
+        id: 'contas-correntes',
+        label: 'Contas Correntes',
+        icon: NavIcons.contasCorrentes,
+    },
+    {
+        id: 'cartoes',
+        label: 'Cartões de Crédito',
+        icon: NavIcons.cartoes,
     },
 ];
 

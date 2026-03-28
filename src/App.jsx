@@ -14,6 +14,8 @@ import DashboardPage from './pages/DashboardPage';
 import ContasPage from './pages/ContasPage';
 import ParceirosPage from './pages/ParceirosPage';
 import CategoriasPage from './pages/CategoriasPage';
+import ContasCorrentesPage from './pages/ContasCorrentesPage';
+import CartoesPage from './pages/CartoesPage';
 
 import './styles/auth.css';
 import './styles/toast.css';
@@ -38,6 +40,8 @@ function AuthenticatedApp() {
       case 'contas': return <ContasPage />;
       case 'parceiros': return <ParceirosPage />;
       case 'categorias': return <CategoriasPage />;
+      case 'contas-correntes': return <ContasCorrentesPage />;
+      case 'cartoes': return <CartoesPage />;
       default: return <DashboardPage />;
     }
   };

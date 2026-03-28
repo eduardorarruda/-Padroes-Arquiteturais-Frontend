@@ -158,4 +158,66 @@ export const contasAPI = {
 
     deletar: (id) =>
         request(`/api/contas/${id}`, { method: 'DELETE' }),
+
+    baixar: (id, conta_corrente_id, data_pagamento) =>
+        request(`/api/contas/${id}/baixa`, {
+            method: 'PATCH',
+            body: JSON.stringify({ conta_corrente_id, data_pagamento }),
+        }),
+};
+
+// ────────────────────────────────────────────────────────────
+//  CONTAS CORRENTES
+// ────────────────────────────────────────────────────────────
+export const contasCorrentesAPI = {
+    listar: () => request('/api/contas-correntes/'),
+
+    criar: (dados) =>
+        request('/api/contas-correntes/', {
+            method: 'POST',
+            body: JSON.stringify(dados),
+        }),
+
+    atualizar: (id, dados) =>
+        request(`/api/contas-correntes/${id}`, {
+            method: 'PUT',
+            body: JSON.stringify(dados),
+        }),
+
+    deletar: (id) =>
+        request(`/api/contas-correntes/${id}`, { method: 'DELETE' }),
+};
+
+// ────────────────────────────────────────────────────────────
+//  CARTÕES DE CRÉDITO
+// ────────────────────────────────────────────────────────────
+export const cartoesAPI = {
+    listar: () => request('/api/cartoes/'),
+
+    criar: (dados) =>
+        request('/api/cartoes/', {
+            method: 'POST',
+            body: JSON.stringify(dados),
+        }),
+
+    atualizar: (id, dados) =>
+        request(`/api/cartoes/${id}`, {
+            method: 'PUT',
+            body: JSON.stringify(dados),
+        }),
+
+    criarLancamento: (cartaoId, dados) =>
+        request(`/api/cartoes/${cartaoId}/lancamentos`, {
+            method: 'POST',
+            body: JSON.stringify(dados),
+        }),
+
+    listarLancamentos: (cartaoId, mes, ano) =>
+        request(`/api/cartoes/${cartaoId}/lancamentos?mes=${mes}&ano=${ano}`),
+
+    fecharFatura: (cartaoId, mes, ano) =>
+        request(`/api/cartoes/${cartaoId}/fatura/fechar`, {
+            method: 'POST',
+            body: JSON.stringify({ mes, ano }),
+        }),
 };

@@ -11,7 +11,7 @@ import {
     Search, Pencil, X, ArrowDownCircle, ArrowUpCircle,
     ChevronUp, ChevronDown, Download,
 } from 'lucide-react';
-import { contasAPI, categoriasAPI, parceirosAPI } from '../services/api';
+import { contasAPI, categoriasAPI, parceirosAPI, contasCorrentesAPI } from '../services/api';
 import { useToast } from '../contexts/ToastContext';
 import ResumoCards from '../components/ResumoCards';
 import ConfirmModal from '../components/ConfirmModal';
@@ -98,7 +98,7 @@ function exportarCSV(contas, catMap, parMap) {
 // ─────────────────────────────────────────────────────────────
 //  Lista de contas (tabela)
 // ─────────────────────────────────────────────────────────────
-function ListaContas({ contas, catMap, parMap, onEditar, onDeletar }) {
+function ListaContas({ contas, catMap, parMap, onEditar, onDeletar, onBaixar }) {
     const [busca, setBusca] = useState('');
     const [filtroStatus, setFiltroStatus] = useState('Todos');
     const [filtroTipo, setFiltroTipo] = useState('Todos');
@@ -269,6 +269,12 @@ function ListaContas({ contas, catMap, parMap, onEditar, onDeletar }) {
                                                 className="p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">
                                                 <Trash2 size={15} />
                                             </button>
+                                            {conta.status === 'Pendente' && (
+                                                <button onClick={() => onBaixar(conta)} title="Dar Baixa"
+                                                    className="p-1.5 text-emerald-500 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg transition-colors">
+                                                    <CheckCircle size={15} />
+                                                </button>
+                                            )}
                                         </div>
                                     </td>
                                 </tr>
@@ -307,15 +313,8 @@ function ListaContas({ contas, catMap, parMap, onEditar, onDeletar }) {
 
 // ─────────────────────────────────────────────────────────────
 //  FormConta — campos compartilhados (novo + modal edição)
-//
-//  CORREÇÃO PRINCIPAL:
-//  1. Cada instância recebe `idPrefix` para que os `name` dos
-//     radio buttons sejam únicos no DOM (novo_tipo vs modal_tipo),
-//     evitando que um form interfira no outro.
-//  2. handleChange usa useCallback + setForm funcional para
-//     referência estável, sem recriar funções a cada render.
 // ─────────────────────────────────────────────────────────────
-function FormConta({ idPrefix, form, setForm, categorias, parceiros, loadingSelects }) {
+function FormConta({ idPrefix, form, setForm, categorias, parceiros, contasCorrentes, loadingSelects }) {
 
     const handleChange = useCallback((field) => (e) => {
         const val = e.target.value;
@@ -337,27 +336,27 @@ function FormConta({ idPrefix, form, setForm, categorias, parceiros, loadingSele
 
     const tipoFiltro = form.tipo === 'PAGAR' ? 'Fornecedor' : 'Cliente';
     const parceirosFiltrados = form.tipo ? parceiros.filter((p) => p.tipo === tipoFiltro) : parceiros;
-    const parPlaceholder = form.tipo === 'PAGAR' ? '— Sem fornecedor —'
-        : form.tipo === 'RECEBER' ? '— Sem cliente —'
-            : '— Sem parceiro —';
+    const parPlaceholder = form.tipo === 'PAGAR' ? '— Selecione o Fornecedor —'
+        : form.tipo === 'RECEBER' ? '— Selecione o Cliente —'
+            : '— Selecione —';
 
     return (
-        <>
+        <div className="flex flex-col gap-4">
             {/* ── Informações principais ───────────────────────── */}
-            <section className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 mb-4">
+            <section className="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
                 <div className="flex items-center gap-2 mb-5">
                     <div className="w-7 h-7 rounded-lg bg-indigo-100 flex items-center justify-center">
                         <FileText size={14} className="text-indigo-600" />
                     </div>
                     <h3 className="text-sm font-bold text-slate-700 uppercase tracking-wider">
-                        Informações Principais
-                        <span className="ml-2 text-red-400 font-normal normal-case text-xs">* obrigatório</span>
+                        Informações do Lançamento
+                        <span className="ml-2 text-red-400 font-normal normal-case text-xs">* campos obrigatórios</span>
                     </h3>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
 
-                    {/* Tipo — name único por instância */}
+                    {/* Tipo */}
                     <div className="md:col-span-2">
                         <label className={labelCls}>Tipo da Conta <span className="text-red-500">*</span></label>
                         <div className="flex gap-3">
@@ -435,7 +434,43 @@ function FormConta({ idPrefix, form, setForm, categorias, parceiros, loadingSele
                         </div>
                     </div>
 
-                    {/* Status — name único por instância */}
+                    {/* Categoria */}
+                    <div>
+                        <label className={labelCls}>Categoria <span className="text-red-500">*</span></label>
+                        {loadingSelects ? (
+                            <div className={`${inputCls} flex items-center gap-2 text-slate-400`}>
+                                <span className="w-3.5 h-3.5 border-2 border-slate-300 border-t-indigo-500 rounded-full animate-spin" />
+                                Carregando...
+                            </div>
+                        ) : (
+                            <select value={form.categoria_id || ''} onChange={handleChange('categoria_id')} className={inputCls} required>
+                                <option value="">— Selecione —</option>
+                                {categorias?.map((c) => (
+                                    <option key={c.id} value={c.id}>{c.descricao || c.nome}</option>
+                                ))}
+                            </select>
+                        )}
+                    </div>
+
+                    {/* Parceiro */}
+                    <div>
+                        <label className={labelCls}>{tipoFiltro} <span className="text-red-500">*</span></label>
+                        {loadingSelects ? (
+                            <div className={`${inputCls} flex items-center gap-2 text-slate-400`}>
+                                <span className="w-3.5 h-3.5 border-2 border-slate-300 border-t-indigo-500 rounded-full animate-spin" />
+                                Carregando...
+                            </div>
+                        ) : (
+                            <select value={form.parceiro_id || ''} onChange={handleChange('parceiro_id')} className={inputCls} required>
+                                <option value="">{parPlaceholder}</option>
+                                {parceirosFiltrados.map((p) => (
+                                    <option key={p.id} value={p.id}>{p.nome}</option>
+                                ))}
+                            </select>
+                        )}
+                    </div>
+
+                    {/* Status */}
                     <div className="md:col-span-2">
                         <label className={labelCls}>Status</label>
                         <div className="flex gap-3">
@@ -459,75 +494,40 @@ function FormConta({ idPrefix, form, setForm, categorias, parceiros, loadingSele
                             ))}
                         </div>
                     </div>
+
+                    {/* Campos extras se Status == Pago */}
+                    {form.status === 'Pago' && (
+                        <div className="md:col-span-2 p-5 bg-emerald-50/50 border border-emerald-100 rounded-xl mt-2 grid grid-cols-1 md:grid-cols-2 gap-5">
+                            <div>
+                                <label className={labelCls}>Data do Pagamento <span className="text-red-500">*</span></label>
+                                <div className="relative">
+                                    <CalendarDays size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                                    <input
+                                        type="date"
+                                        value={form.data_pagamento || ''}
+                                        onChange={handleChange('data_pagamento')}
+                                        className={`${inputCls} pl-10`}
+                                    />
+                                </div>
+                            </div>
+                            <div>
+                            </div>
+                        </div>
+                    )}
                 </div>
             </section>
-
-            {/* ── Relacionamentos ──────────────────────────────── */}
-            <section className="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
-                <div className="flex items-center gap-2 mb-5">
-                    <div className="w-7 h-7 rounded-lg bg-slate-100 flex items-center justify-center">
-                        <Tag size={14} className="text-slate-600" />
-                    </div>
-                    <h3 className="text-sm font-bold text-slate-700 uppercase tracking-wider">
-                        Relacionamentos
-                        <span className="ml-2 text-slate-400 font-normal normal-case text-xs">opcional</span>
-                    </h3>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-
-                    {/* Categoria */}
-                    <div>
-                        <label className={labelCls}>
-                            <span className="flex items-center gap-1.5">
-                                <Tag size={13} className="text-indigo-500" />Categoria
-                            </span>
-                        </label>
-                        {loadingSelects
-                            ? <div className={`${inputCls} flex items-center gap-2 text-slate-400`}>
-                                <span className="w-3.5 h-3.5 border-2 border-slate-300 border-t-indigo-500 rounded-full animate-spin" />
-                                Carregando...
-                            </div>
-                            : <select value={form.categoria_id} onChange={handleChange('categoria_id')} className={inputCls}>
-                                <option value="">— Sem categoria —</option>
-                                {categorias.map((c) => <option key={c.id} value={c.id}>{c.descricao}</option>)}
-                            </select>}
-                    </div>
-
-                    {/* Parceiro filtrado por tipo */}
-                    <div>
-                        <label className={labelCls}>
-                            <span className="flex items-center gap-1.5">
-                                <Users size={13} className="text-indigo-500" />
-                                {form.tipo === 'PAGAR' ? 'Fornecedor' : form.tipo === 'RECEBER' ? 'Cliente' : 'Parceiro'}
-                            </span>
-                        </label>
-                        {loadingSelects
-                            ? <div className={`${inputCls} flex items-center gap-2 text-slate-400`}>
-                                <span className="w-3.5 h-3.5 border-2 border-slate-300 border-t-indigo-500 rounded-full animate-spin" />
-                                Carregando...
-                            </div>
-                            : <select value={form.parceiro_id} onChange={handleChange('parceiro_id')} className={inputCls}>
-                                <option value="">{parPlaceholder}</option>
-                                {parceirosFiltrados.map((p) => <option key={p.id} value={p.id}>{p.nome}</option>)}
-                            </select>}
-                        {!loadingSelects && form.tipo && parceirosFiltrados.length === 0 && (
-                            <p className="text-xs text-slate-400 mt-1">
-                                Nenhum {tipoFiltro.toLowerCase()} cadastrado.
-                            </p>
-                        )}
-                    </div>
-                </div>
-            </section>
-        </>
+        </div>
     );
 }
 
 // ─────────────────────────────────────────────────────────────
 //  Modal de edição
 // ─────────────────────────────────────────────────────────────
-function ModalEdicao({ conta, categorias, parceiros, loadingSelects, onSalvo, onFechar }) {
+function ModalEdicao({ conta, categorias, parceiros, contasCorrentes, loadingSelects, onSalvo, onFechar }) {
     const { toast } = useToast();
     const overlayRef = useRef(null);
+
+    const dataHoje = new Date().toISOString().slice(0, 10);
 
     const [form, setForm] = useState({
         tipo: conta.tipo ?? 'PAGAR',
@@ -537,6 +537,8 @@ function ModalEdicao({ conta, categorias, parceiros, loadingSelects, onSalvo, on
         status: conta.status ?? 'Pendente',
         categoria_id: conta.categoria_id != null ? String(conta.categoria_id) : '',
         parceiro_id: conta.parceiro_id != null ? String(conta.parceiro_id) : '',
+        conta_corrente_id: conta.conta_corrente_id != null ? String(conta.conta_corrente_id) : '',
+        data_pagamento: conta.data_pagamento ?? dataHoje,
     });
     const [submitting, setSubmitting] = useState(false);
 
@@ -556,6 +558,16 @@ function ModalEdicao({ conta, categorias, parceiros, loadingSelects, onSalvo, on
         if (!form.descricao.trim()) { toast.error('Informe a descrição.'); return; }
         if (!form.valor || parseFloat(form.valor) <= 0) { toast.error('Valor deve ser maior que zero.'); return; }
         if (!form.data_vencimento) { toast.error('Informe a data de vencimento.'); return; }
+        if (!form.categoria_id) { toast.error('Selecione uma categoria.'); return; }
+        if (!form.parceiro_id) {
+            const msg = form.tipo === 'PAGAR' ? 'Selecione um fornecedor.' : 'Selecione um cliente.';
+            toast.error(msg);
+            return;
+        }
+        if (form.status === 'Pago' || form.status === 'Recebido' || form.status === 'PAGO') {
+            if (!form.conta_corrente_id) { toast.error('Uma Conta Corrente é obrigatória para lançamentos pagos.'); return; }
+            if (!form.data_pagamento) { toast.error('A Data de Pagamento é obrigatória.'); return; }
+        }
 
         setSubmitting(true);
         try {
@@ -564,9 +576,13 @@ function ModalEdicao({ conta, categorias, parceiros, loadingSelects, onSalvo, on
                 descricao: form.descricao.trim(),
                 valor: parseFloat(form.valor),
                 data_vencimento: form.data_vencimento,
-                status: form.status,
+                status: form.status === 'Pago' ? 'PAGO' : 'Pendente',
                 categoria_id: form.categoria_id ? Number(form.categoria_id) : null,
                 parceiro_id: form.parceiro_id ? Number(form.parceiro_id) : null,
+                ...(form.status === 'Pago' ? {
+                    conta_corrente_id: Number(form.conta_corrente_id),
+                    data_pagamento: form.data_pagamento
+                } : {})
             });
             toast.success('Lançamento atualizado com sucesso!');
             onSalvo();
@@ -614,6 +630,7 @@ function ModalEdicao({ conta, categorias, parceiros, loadingSelects, onSalvo, on
                             setForm={setForm}
                             categorias={categorias}
                             parceiros={parceiros}
+                            contasCorrentes={contasCorrentes}
                             loadingSelects={loadingSelects}
                         />
                     </div>
@@ -638,14 +655,159 @@ function ModalEdicao({ conta, categorias, parceiros, loadingSelects, onSalvo, on
 }
 
 // ─────────────────────────────────────────────────────────────
+//  Modal de Baixa — selecionar conta corrente
+// ─────────────────────────────────────────────────────────────
+function ModalBaixa({ conta, onSalvo, onFechar }) {
+    const { toast } = useToast();
+    const overlayRef = useRef(null);
+
+    const dataHoje = new Date().toISOString().slice(0, 10);
+
+    const [contasCorrentes, setContasCorrentes] = useState([]);
+    const [loadingCC, setLoadingCC] = useState(true);
+    const [selected, setSelected] = useState('');
+    const [dataPagamento, setDataPagamento] = useState(dataHoje);
+    const [submitting, setSubmitting] = useState(false);
+
+    useEffect(() => {
+        document.body.style.overflow = 'hidden';
+        const esc = (e) => { if (e.key === 'Escape') onFechar(); };
+        document.addEventListener('keydown', esc);
+        return () => {
+            document.body.style.overflow = '';
+            document.removeEventListener('keydown', esc);
+        };
+    }, [onFechar]);
+
+    useEffect(() => {
+        contasCorrentesAPI.listar()
+            .then((data) => setContasCorrentes(Array.isArray(data) ? data : []))
+            .catch(() => toast.error('Erro ao carregar contas correntes.'))
+            .finally(() => setLoadingCC(false));
+    }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+    const handleConfirmar = async () => {
+        if (!dataPagamento) { toast.error('Informe a data do pagamento.'); return; }
+        if (!selected) { toast.error('Selecione uma conta corrente.'); return; }
+
+        setSubmitting(true);
+        try {
+            await contasAPI.baixar(conta.id, Number(selected), dataPagamento);
+            toast.success(`Baixa realizada com sucesso para "${conta.descricao}"!`);
+            onSalvo();
+        } catch (err) {
+            toast.error(`Erro ao dar baixa: ${err.message}`);
+        } finally {
+            setSubmitting(false);
+        }
+    };
+
+    return (
+        <div
+            ref={overlayRef}
+            onClick={(e) => { if (e.target === overlayRef.current) onFechar(); }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4"
+            style={{ background: 'rgba(15,15,26,.55)', backdropFilter: 'blur(3px)' }}
+        >
+            <div
+                className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6"
+                style={{ animation: 'baixaIn .22s cubic-bezier(.22,1,.36,1) both' }}
+            >
+                <div className="flex items-center justify-between mb-4">
+                    <h2 className="text-base font-bold text-slate-800 flex items-center gap-2">
+                        <CheckCircle size={16} className="text-emerald-600" />
+                        Dar Baixa
+                    </h2>
+                    <button onClick={onFechar} className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors">
+                        <X size={16} />
+                    </button>
+                </div>
+
+                <p className="text-sm text-slate-600 mb-1">
+                    <span className="font-medium">Conta:</span> {conta.descricao}
+                </p>
+                <p className="text-sm text-slate-600 mb-4">
+                    <span className="font-medium">Valor:</span>{' '}
+                    <span className={conta.tipo === 'RECEBER' ? 'text-emerald-700 font-semibold' : 'text-red-700 font-semibold'}>
+                        R$ {Number(conta.valor).toFixed(2)}
+                    </span>
+                </p>
+
+                <div className="grid grid-cols-1 gap-4 mb-5">
+                    <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-1">
+                            Data do Pagamento *
+                        </label>
+                        <input
+                            type="date"
+                            value={dataPagamento}
+                            onChange={(e) => setDataPagamento(e.target.value)}
+                            className="w-full px-3.5 py-2.5 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 outline-none transition"
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-1">
+                            Conta Corrente *
+                        </label>
+                        {loadingCC ? (
+                            <div className="w-full px-3.5 py-2.5 border border-slate-300 rounded-lg text-sm flex items-center gap-2 text-slate-400">
+                                <span className="w-3.5 h-3.5 border-2 border-slate-300 border-t-emerald-500 rounded-full animate-spin" />
+                                Carregando...
+                            </div>
+                        ) : contasCorrentes.length === 0 ? (
+                            <p className="text-sm text-red-500">Nenhuma conta corrente cadastrada. Cadastre uma primeiro.</p>
+                        ) : (
+                            <select
+                                value={selected}
+                                onChange={(e) => setSelected(e.target.value)}
+                                className="w-full px-3.5 py-2.5 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 outline-none transition bg-white"
+                            >
+                                <option value="">— Selecione a conta corrente —</option>
+                                {contasCorrentes.map((cc) => (
+                                    <option key={cc.id} value={cc.id}>
+                                        {cc.descricao} (Saldo: R$ {Number(cc.saldo ?? 0).toFixed(2)})
+                                    </option>
+                                ))}
+                            </select>
+                        )}
+                    </div>
+                </div>
+
+                <div className="flex gap-3">
+                    <button type="button" onClick={onFechar}
+                        className="flex-1 px-4 py-2.5 border border-slate-300 text-slate-700 text-sm font-medium rounded-lg hover:bg-slate-50 transition-colors">
+                        Cancelar
+                    </button>
+                    <button
+                        onClick={handleConfirmar}
+                        disabled={submitting || !selected || loadingCC}
+                        className="flex-1 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-white text-sm font-semibold rounded-lg transition-colors flex items-center justify-center gap-2"
+                    >
+                        {submitting
+                            ? <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                            : <CheckCircle size={15} />}
+                        {submitting ? 'Processando...' : 'Confirmar Baixa'}
+                    </button>
+                </div>
+            </div>
+            <style>{`@keyframes baixaIn{from{opacity:0;transform:scale(.94) translateY(8px)}to{opacity:1;transform:none}}`}</style>
+        </div>
+    );
+}
+
+// ─────────────────────────────────────────────────────────────
 //  Formulário de novo lançamento
 // ─────────────────────────────────────────────────────────────
-function FormularioNovoLancamento({ categorias, parceiros, loadingSelects, onSalvo, onCancelar }) {
+function FormularioNovoLancamento({ categorias, parceiros, contasCorrentes, loadingSelects, onSalvo, onCancelar }) {
     const { toast } = useToast();
+
+    const dataHoje = new Date().toISOString().slice(0, 10);
+
     const [form, setForm] = useState({
         tipo: 'PAGAR', descricao: '', valor: '',
         data_vencimento: '', status: 'Pendente',
         categoria_id: '', parceiro_id: '',
+        conta_corrente_id: '', data_pagamento: dataHoje,
     });
     const [submitting, setSubmitting] = useState(false);
 
@@ -655,6 +817,16 @@ function FormularioNovoLancamento({ categorias, parceiros, loadingSelects, onSal
         if (!form.descricao.trim()) { toast.error('Informe a descrição da conta.'); return; }
         if (!form.valor || parseFloat(form.valor) <= 0) { toast.error('O valor deve ser maior que zero.'); return; }
         if (!form.data_vencimento) { toast.error('Informe a data de vencimento.'); return; }
+        if (!form.categoria_id) { toast.error('Selecione uma categoria.'); return; }
+        if (!form.parceiro_id) {
+            const msg = form.tipo === 'PAGAR' ? 'Selecione um fornecedor.' : 'Selecione um cliente.';
+            toast.error(msg);
+            return;
+        }
+        if (form.status === 'Pago' || form.status === 'Recebido' || form.status === 'PAGO') {
+            if (!form.conta_corrente_id) { toast.error('Uma Conta Corrente é obrigatória para lançamentos pagos.'); return; }
+            if (!form.data_pagamento) { toast.error('A Data de Pagamento é obrigatória.'); return; }
+        }
 
         setSubmitting(true);
         try {
@@ -663,9 +835,13 @@ function FormularioNovoLancamento({ categorias, parceiros, loadingSelects, onSal
                 descricao: form.descricao.trim(),
                 valor: parseFloat(form.valor),
                 data_vencimento: form.data_vencimento,
-                status: form.status,
+                status: form.status === 'Pago' ? 'PAGO' : 'Pendente',
                 ...(form.categoria_id ? { categoria_id: Number(form.categoria_id) } : {}),
                 ...(form.parceiro_id ? { parceiro_id: Number(form.parceiro_id) } : {}),
+                ...(form.status === 'Pago' ? {
+                    conta_corrente_id: Number(form.conta_corrente_id),
+                    data_pagamento: form.data_pagamento
+                } : {})
             });
             toast.success('Conta lançada com sucesso!');
             onSalvo();
@@ -697,6 +873,7 @@ function FormularioNovoLancamento({ categorias, parceiros, loadingSelects, onSal
                     setForm={setForm}
                     categorias={categorias}
                     parceiros={parceiros}
+                    contasCorrentes={contasCorrentes}
                     loadingSelects={loadingSelects}
                 />
                 <div className="flex items-center justify-end gap-3 mt-6">
@@ -729,21 +906,24 @@ export default function ContasPage() {
 
     const [categorias, setCategorias] = useState([]);
     const [parceiros, setParceiros] = useState([]);
+    const [contasCorrentes, setContasCorrentes] = useState([]);
     const [loadingSelects, setLoadingSelects] = useState(true);
 
     const catMap = Object.fromEntries(categorias.map((c) => [c.id, c]));
     const parMap = Object.fromEntries(parceiros.map((p) => [p.id, p]));
 
     const [contaEditando, setContaEditando] = useState(null);
+    const [contaBaixa, setContaBaixa] = useState(null);
     const [confirm, setConfirm] = useState({ isOpen: false, conta: null });
 
     useEffect(() => {
-        Promise.all([categoriasAPI.listar(), parceirosAPI.listar()])
-            .then(([cats, pars]) => {
+        Promise.all([categoriasAPI.listar(), parceirosAPI.listar(), contasCorrentesAPI.listar()])
+            .then(([cats, pars, ccs]) => {
                 setCategorias(Array.isArray(cats) ? cats : []);
                 setParceiros(Array.isArray(pars) ? pars : []);
+                setContasCorrentes(Array.isArray(ccs) ? ccs : []);
             })
-            .catch(() => toast.warning('Não foi possível carregar categorias/parceiros.'))
+            .catch(() => toast.warning('Não foi possível carregar listas auxiliares.'))
             .finally(() => setLoadingSelects(false));
     }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -788,6 +968,7 @@ export default function ContasPage() {
                 <FormularioNovoLancamento
                     categorias={categorias}
                     parceiros={parceiros}
+                    contasCorrentes={contasCorrentes}
                     loadingSelects={loadingSelects}
                     onSalvo={() => { setView('list'); carregar(); }}
                     onCancelar={() => setView('list')}
@@ -813,9 +994,18 @@ export default function ContasPage() {
                     conta={contaEditando}
                     categorias={categorias}
                     parceiros={parceiros}
+                    contasCorrentes={contasCorrentes}
                     loadingSelects={loadingSelects}
                     onSalvo={() => { setContaEditando(null); carregar(); }}
                     onFechar={() => setContaEditando(null)}
+                />
+            )}
+
+            {contaBaixa && (
+                <ModalBaixa
+                    conta={contaBaixa}
+                    onSalvo={() => { setContaBaixa(null); carregar(); }}
+                    onFechar={() => setContaBaixa(null)}
                 />
             )}
 
@@ -853,6 +1043,7 @@ export default function ContasPage() {
                         parMap={parMap}
                         onEditar={setContaEditando}
                         onDeletar={handleDeletarSolicitado}
+                        onBaixar={setContaBaixa}
                     />
                 </>
             )}
