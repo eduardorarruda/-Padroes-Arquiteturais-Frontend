@@ -511,6 +511,20 @@ function FormConta({ idPrefix, form, setForm, categorias, parceiros, contasCorre
                                 </div>
                             </div>
                             <div>
+                                <label className={labelCls}>Conta Corrente <span className="text-red-500">*</span></label>
+                                {loadingSelects ? (
+                                    <div className={`${inputCls} flex items-center gap-2 text-slate-400`}>
+                                        <span className="w-3.5 h-3.5 border-2 border-slate-300 border-t-emerald-500 rounded-full animate-spin" />
+                                        Carregando...
+                                    </div>
+                                ) : (
+                                    <select value={form.conta_corrente_id || ''} onChange={handleChange('conta_corrente_id')} className={inputCls} required>
+                                        <option value="">— Selecione a conta —</option>
+                                        {contasCorrentes?.map((cc) => (
+                                            <option key={cc.id} value={cc.id}>{cc.descricao}</option>
+                                        ))}
+                                    </select>
+                                )}
                             </div>
                         </div>
                     )}
