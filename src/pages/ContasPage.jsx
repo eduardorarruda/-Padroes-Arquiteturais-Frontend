@@ -465,6 +465,63 @@ function FormConta({ idPrefix, form, setForm, categorias, parceiros, contasCorre
                         </div>
                     </div>
 
+                    {/* Parcelamento (apenas criação) */}
+                    {form.isParcelado !== undefined && (
+                        <div className="md:col-span-2 bg-slate-50 p-5 rounded-xl border border-slate-200 mt-1 mb-2">
+                            <label className="flex items-center gap-3 cursor-pointer select-none">
+                                <div className="relative inline-flex items-center">
+                                    <input
+                                        type="checkbox"
+                                        checked={form.isParcelado}
+                                        onChange={(e) => setForm(f => ({ ...f, isParcelado: e.target.checked }))}
+                                        className="sr-only peer"
+                                    />
+                                    <div className="w-11 h-6 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
+                                </div>
+                                <span className="text-sm font-semibold text-slate-700">Esta conta é parcelada/recorrente?</span>
+                            </label>
+
+                            {form.isParcelado && (
+                                <div className="mt-5 pt-5 border-t border-slate-200 grid grid-cols-1 md:grid-cols-2 gap-5 animate-in fade-in slide-in-from-top-2 duration-300">
+                                    <div>
+                                        <label className={labelCls}>Quantidade de Parcelas <span className="text-red-500">*</span></label>
+                                        <input
+                                            type="number" min="2" step="1"
+                                            value={form.quantidade_parcelas}
+                                            onChange={handleChange('quantidade_parcelas')}
+                                            className={inputCls}
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className={labelCls}>Tipo de Lançamento <span className="text-red-500">*</span></label>
+                                        <div className="flex flex-col gap-3 mt-2">
+                                            <label className="flex items-center gap-2 cursor-pointer text-sm text-slate-700 font-medium select-none">
+                                                <input
+                                                    type="radio"
+                                                    name={`${idPrefix}_divisao`}
+                                                    checked={form.dividir_valor === false}
+                                                    onChange={() => setForm(f => ({ ...f, dividir_valor: false }))}
+                                                    className="w-4 h-4 text-indigo-600 border-slate-300 focus:ring-indigo-500 cursor-pointer"
+                                                />
+                                                Repetir valor em todas as parcelas
+                                            </label>
+                                            <label className="flex items-center gap-2 cursor-pointer text-sm text-slate-700 font-medium select-none">
+                                                <input
+                                                    type="radio"
+                                                    name={`${idPrefix}_divisao`}
+                                                    checked={form.dividir_valor === true}
+                                                    onChange={() => setForm(f => ({ ...f, dividir_valor: true }))}
+                                                    className="w-4 h-4 text-indigo-600 border-slate-300 focus:ring-indigo-500 cursor-pointer"
+                                                />
+                                                Dividir valor total pelas parcelas
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    )}
+
                     {/* Categoria */}
                     <div>
                         <label className={labelCls}>Categoria <span className="text-red-500">*</span></label>
@@ -860,6 +917,7 @@ function FormularioNovoLancamento({ categorias, parceiros, contasCorrentes, load
         tipo: 'PAGAR', descricao: '', valor: '',
         juros: '', multa: '', desconto: '', acrescimo: '',
         data_vencimento: '', status: 'Pendente',
+        isParcelado: false, quantidade_parcelas: 2, dividir_valor: false,
         categoria_id: '', parceiro_id: '',
         conta_corrente_id: '', data_pagamento: dataHoje,
     });
@@ -894,6 +952,9 @@ function FormularioNovoLancamento({ categorias, parceiros, contasCorrentes, load
                 acrescimo: parseFloat(form.acrescimo) || 0,
                 data_vencimento: form.data_vencimento,
                 status: form.status === 'Pago' ? 'PAGO' : 'Pendente',
+                quantidade_parcelas: form.isParcelado ? parseInt(form.quantidade_parcelas, 10) || 1 : 1,
+                dividir_valor: form.isParcelado ? form.dividir_valor : false,
+                intervalo_meses: 1,
                 ...(form.categoria_id ? { categoria_id: Number(form.categoria_id) } : {}),
                 ...(form.parceiro_id ? { parceiro_id: Number(form.parceiro_id) } : {}),
                 ...(form.status === 'Pago' ? {
