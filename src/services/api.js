@@ -186,6 +186,12 @@ export const contasCorrentesAPI = {
 
     deletar: (id) =>
         request(`/api/contas-correntes/${id}`, { method: 'DELETE' }),
+
+    transferir: (dados) =>
+        request('/api/contas-correntes/transferir', {
+            method: 'POST',
+            body: JSON.stringify(dados),
+        }),
 };
 
 // ────────────────────────────────────────────────────────────
@@ -220,4 +226,17 @@ export const cartoesAPI = {
             method: 'POST',
             body: JSON.stringify({ mes, ano }),
         }),
+};
+
+// ────────────────────────────────────────────────────────────
+//  NOTIFICAÇÕES
+// ────────────────────────────────────────────────────────────
+export const notificacoesAPI = {
+    sincronizar: () =>
+        request('/api/notificacoes/sincronizar', { method: 'POST' }),
+
+    listarNaoLidas: () => request('/api/notificacoes/'),
+
+    marcarLida: (id) =>
+        request(`/api/notificacoes/${id}/lida`, { method: 'PATCH' }),
 };

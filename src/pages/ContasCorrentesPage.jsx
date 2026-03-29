@@ -6,7 +6,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
     PlusCircle, Trash2, Pencil, X, Check, Search,
-    Landmark, DollarSign,
+    Landmark, DollarSign, ArrowRightLeft
 } from 'lucide-react';
 import { contasCorrentesAPI } from '../services/api';
 import { useToast } from '../contexts/ToastContext';
@@ -135,6 +135,151 @@ function ModalContaCorrente({ contaCorrente, onSalvo, onFechar }) {
 }
 
 // ─────────────────────────────────────────────────────────────
+//  Modal de Transferência
+// ─────────────────────────────────────────────────────────────
+function ModalTransferencia({ contas, onSalvo, onFechar }) {
+    const { toast } = useToast();
+    const overlayRef = useRef(null);
+
+    const [form, setForm] = useState({
+        conta_origem_id: '',
+        conta_destino_id: '',
+        valor: '',
+    });
+    const [loading, setLoading] = useState(false);
+
+    useEffect(() => {
+        document.body.style.overflow = 'hidden';
+        const esc = (e) => { if (e.key === 'Escape') onFechar(); };
+        document.addEventListener('keydown', esc);
+        return () => {
+            document.body.style.overflow = '';
+            document.removeEventListener('keydown', esc);
+        };
+    }, [onFechar]);
+
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        if (!form.conta_origem_id || !form.conta_destino_id) return toast.error('Selecione as contas.');
+        if (!form.valor || parseFloat(form.valor) <= 0) return toast.error('Informe um valor válido.');
+        if (form.conta_origem_id === form.conta_destino_id) return toast.error('As contas devem ser diferentes.');
+
+        setLoading(true);
+        try {
+            await contasCorrentesAPI.transferir({
+                conta_origem_id: parseInt(form.conta_origem_id, 10),
+                conta_destino_id: parseInt(form.conta_destino_id, 10),
+                valor: parseFloat(form.valor),
+            });
+            toast.success('Transferência realizada com sucesso!');
+            onSalvo();
+        } catch (err) {
+            toast.error(`Erro: ${err.message}`);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const saldoOrigem = contas.find(c => c.id === parseInt(form.conta_origem_id))?.saldo || 0;
+
+    return (
+        <div
+            ref={overlayRef}
+            onClick={(e) => { if (e.target === overlayRef.current) onFechar(); }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4"
+            style={{ background: 'rgba(15,15,26,.55)', backdropFilter: 'blur(3px)' }}
+        >
+            <div
+                className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6"
+                style={{ animation: 'ccModalIn .22s cubic-bezier(.22,1,.36,1) both' }}
+            >
+                <div className="flex items-center justify-between mb-5">
+                    <h2 className="text-base font-bold text-slate-800 flex items-center gap-2">
+                        <ArrowRightLeft size={16} className="text-indigo-600" />
+                        Nova Transferência
+                    </h2>
+                    <button onClick={onFechar} className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors">
+                        <X size={16} />
+                    </button>
+                </div>
+
+                <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+                    <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-1">Conta de Origem *</label>
+                        <select
+                            value={form.conta_origem_id}
+                            onChange={(e) => setForm(f => ({ ...f, conta_origem_id: e.target.value }))}
+                            className={inputCls}
+                            required
+                        >
+                            <option value="">Selecione...</option>
+                            {contas.map(c => (
+                                <option key={c.id} value={c.id}>{c.descricao}</option>
+                            ))}
+                        </select>
+                        {form.conta_origem_id && (
+                            <p className="text-xs text-slate-500 mt-1">Saldo disponível: R$ {Number(saldoOrigem).toFixed(2)}</p>
+                        )}
+                    </div>
+                    
+                    <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-1">Conta de Destino *</label>
+                        <select
+                            value={form.conta_destino_id}
+                            onChange={(e) => setForm(f => ({ ...f, conta_destino_id: e.target.value }))}
+                            className={inputCls}
+                            required
+                        >
+                            <option value="">Selecione...</option>
+                            {contas.map(c => (
+                                <option 
+                                    key={c.id} 
+                                    value={c.id} 
+                                    disabled={String(c.id) === String(form.conta_origem_id)}
+                                >
+                                    {c.descricao}
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+
+                    <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-1">Valor da Transferência (R$) *</label>
+                        <div className="relative">
+                            <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm font-medium pointer-events-none">R$</span>
+                            <input
+                                type="number"
+                                step="0.01"
+                                min="0.01"
+                                value={form.valor}
+                                onChange={(e) => setForm((f) => ({ ...f, valor: e.target.value }))}
+                                className={`${inputCls} pl-10`}
+                                placeholder="0,00"
+                                required
+                            />
+                        </div>
+                    </div>
+                    
+                    <div className="flex gap-3 pt-1">
+                        <button type="button" onClick={onFechar}
+                            className="flex-1 px-4 py-2.5 border border-slate-300 text-slate-700 text-sm font-medium rounded-lg hover:bg-slate-50 transition-colors">
+                            Cancelar
+                        </button>
+                        <button type="submit" disabled={loading || !form.conta_origem_id || !form.conta_destino_id || !form.valor}
+                            className="flex-1 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 text-white text-sm font-semibold rounded-lg transition-colors flex items-center justify-center gap-2">
+                            {loading
+                                ? <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                                : <Check size={15} />}
+                            {loading ? 'Transferindo...' : 'Transferir'}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    );
+}
+
+// ─────────────────────────────────────────────────────────────
 //  Página principal
 // ─────────────────────────────────────────────────────────────
 export default function ContasCorrentesPage() {
@@ -147,6 +292,9 @@ export default function ContasCorrentesPage() {
     // modal de criação/edição
     const [modalAberto, setModalAberto] = useState(false);
     const [editando, setEditando] = useState(null);
+
+    // modal de transferência
+    const [modalTransferenciaAberto, setModalTransferenciaAberto] = useState(false);
 
     // confirm de exclusão
     const [confirm, setConfirm] = useState({ isOpen: false, conta: null });
@@ -222,17 +370,33 @@ export default function ContasCorrentesPage() {
                 />
             )}
 
-            <header className="flex items-center justify-between mb-6">
+            {modalTransferenciaAberto && (
+                <ModalTransferencia
+                    contas={contas}
+                    onSalvo={() => { setModalTransferenciaAberto(false); carregar(); }}
+                    onFechar={() => setModalTransferenciaAberto(false)}
+                />
+            )}
+
+            <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
                 <div>
                     <h1 className="text-2xl font-bold text-slate-800 tracking-tight">Contas Correntes</h1>
                     <p className="text-slate-500 mt-1 text-sm">Gerencie suas contas bancárias e carteiras.</p>
                 </div>
-                <button onClick={handleNovo}
-                    className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold px-4 py-2.5 rounded-lg transition-colors shadow-sm shadow-indigo-200">
-                    <PlusCircle size={16} />
-                    <span className="hidden sm:inline">Nova Conta</span>
-                    <span className="sm:hidden">Nova</span>
-                </button>
+                <div className="flex gap-2">
+                    <button onClick={() => setModalTransferenciaAberto(true)}
+                        className="flex items-center gap-2 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 text-sm font-semibold px-4 py-2.5 rounded-lg transition-colors shadow-sm">
+                        <ArrowRightLeft size={16} />
+                        <span className="hidden sm:inline">Transferir</span>
+                        <span className="sm:hidden">Transferir</span>
+                    </button>
+                    <button onClick={handleNovo}
+                        className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold px-4 py-2.5 rounded-lg transition-colors shadow-sm shadow-indigo-200">
+                        <PlusCircle size={16} />
+                        <span className="hidden sm:inline">Nova Conta</span>
+                        <span className="sm:hidden">Nova</span>
+                    </button>
+                </div>
             </header>
 
             {/* Card de resumo */}

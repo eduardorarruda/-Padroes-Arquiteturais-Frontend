@@ -5,8 +5,10 @@
 // ============================================================
 
 import React, { useState, useEffect, useCallback } from 'react';
+import { Bell, Check } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
+import { notificacoesAPI } from '../services/api';
 import '../styles/layout.css';
 
 // ── Ícones ────────────────────────────────────────────────────
@@ -144,6 +146,32 @@ export default function AppLayout({ currentPage, onNavigate, children }) {
     const { toast } = useToast();
     const [mobileOpen, setMobileOpen] = useState(false);
 
+    // Estados de Notificações
+    const [notificacoes, setNotificacoes] = useState([]);
+    const [menuAberto, setMenuAberto] = useState(false);
+
+    useEffect(() => {
+        const fetchNotificacoes = async () => {
+            try {
+                await notificacoesAPI.sincronizar();
+                const data = await notificacoesAPI.listarNaoLidas();
+                setNotificacoes(Array.isArray(data) ? data : []);
+            } catch (err) {
+                console.error("Erro ao carregar notificações", err);
+            }
+        };
+        fetchNotificacoes();
+    }, []);
+
+    const handleMarcarLida = async (id) => {
+        try {
+            await notificacoesAPI.marcarLida(id);
+            setNotificacoes(prev => prev.filter(n => n.id !== id));
+        } catch (err) {
+            toast.error('Erro ao marcar notificação como lida.');
+        }
+    };
+
     useEffect(() => {
         const mq = window.matchMedia('(min-width: 1024px)');
         const handler = (e) => { if (e.matches) setMobileOpen(false); };
@@ -249,8 +277,61 @@ export default function AppLayout({ currentPage, onNavigate, children }) {
                         {mobileOpen ? NavIcons.close : NavIcons.menu}
                     </button>
                     <Logo />
-                    <div className="topbar__user-avatar">
-                        {(user?.nome ?? 'U')[0].toUpperCase()}
+                    
+                    <div className="flex items-center gap-4">
+                        <div className="relative">
+                            <button
+                                onClick={() => setMenuAberto(!menuAberto)}
+                                className="relative p-2 text-gray-500 hover:text-gray-700 transition-colors"
+                                aria-label="Notificações"
+                            >
+                                <Bell size={24} />
+                                {notificacoes.length > 0 && (
+                                    <span className="absolute top-1 right-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white">
+                                        {notificacoes.length}
+                                    </span>
+                                )}
+                            </button>
+
+                            {/* Dropdown flutuante */}
+                            {menuAberto && (
+                                <div className="absolute right-0 top-12 mt-2 w-80 bg-white shadow-lg rounded-md z-50 border border-gray-100 flex flex-col">
+                                    <div className="px-4 py-3 border-b border-gray-100">
+                                        <h3 className="text-sm font-semibold text-gray-900">Notificações</h3>
+                                    </div>
+                                    <div className="max-h-80 overflow-y-auto divide-y divide-gray-100">
+                                        {notificacoes.length === 0 ? (
+                                            <p className="px-4 py-6 text-sm text-gray-500 text-center">
+                                                Nenhuma nova notificação
+                                            </p>
+                                        ) : (
+                                            notificacoes.map(notif => (
+                                                <div key={notif.id} className="p-4 hover:bg-gray-50 transition-colors">
+                                                    <div className="flex justify-between items-start gap-2">
+                                                        <p className="text-sm text-gray-700 flex-1">
+                                                            {notif.mensagem}
+                                                        </p>
+                                                        <button
+                                                            onClick={() => handleMarcarLida(notif.id)}
+                                                            className="text-gray-400 hover:text-indigo-600 transition-colors flex-shrink-0"
+                                                            title="Marcar como lida"
+                                                        >
+                                                            <Check size={18} />
+                                                        </button>
+                                                    </div>
+                                                    <span className="text-xs text-gray-400 mt-2 block">
+                                                        {new Date(notif.data_criacao).toLocaleString('pt-BR')}
+                                                    </span>
+                                                </div>
+                                            ))
+                                        )}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                        <div className="topbar__user-avatar">
+                            {(user?.nome ?? 'U')[0].toUpperCase()}
+                        </div>
                     </div>
                 </header>
 

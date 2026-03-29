@@ -82,7 +82,7 @@ function exportarCSV(contas, catMap, parMap) {
         catMap[c.categoria_id]?.descricao ?? '',
         parMap[c.parceiro_id]?.nome ?? '',
         c.data_vencimento,
-        Number(c.valor).toFixed(2).replace('.', ','),
+        ((Number(c.valor)||0) + (Number(c.juros)||0) + (Number(c.multa)||0) + (Number(c.acrescimo)||0) - (Number(c.desconto)||0)).toFixed(2).replace('.', ','),
         c.status,
     ]);
     const csv = [header, ...rows].map((r) => r.join(';')).join('\n');
@@ -248,8 +248,11 @@ function ListaContas({ contas, catMap, parMap, onEditar, onDeletar, onBaixar }) 
                                         </span>
                                     </td>
                                     <td className="px-5 py-3.5">
-                                        <span className={`text-sm font-semibold ${conta.tipo === 'RECEBER' ? 'text-emerald-700' : 'text-red-700'}`}>
-                                            {conta.tipo === 'RECEBER' ? '+' : '-'} R$ {Number(conta.valor).toFixed(2)}
+                                        <span className={`text-sm font-semibold flex flex-col ${conta.tipo === 'RECEBER' ? 'text-emerald-700' : 'text-red-700'}`}>
+                                            <span>{conta.tipo === 'RECEBER' ? '+' : '-'} R$ {((Number(conta.valor)||0) + (Number(conta.juros)||0) + (Number(conta.multa)||0) + (Number(conta.acrescimo)||0) - (Number(conta.desconto)||0)).toFixed(2)}</span>
+                                            {((Number(conta.juros)||0) + (Number(conta.multa)||0) + (Number(conta.acrescimo)||0) > 0 || Number(conta.desconto) > 0) && (
+                                                <span className="text-[10px] text-slate-400 font-normal">Orig: R$ {Number(conta.valor).toFixed(2)}</span>
+                                            )}
                                         </span>
                                     </td>
                                     <td className="px-5 py-3.5">
@@ -405,18 +408,46 @@ function FormConta({ idPrefix, form, setForm, categorias, parceiros, contasCorre
                         />
                     </div>
 
-                    {/* Valor */}
-                    <div>
-                        <label className={labelCls}>Valor (R$) <span className="text-red-500">*</span></label>
-                        <div className="relative">
+                    {/* Valor Detalhado */}
+                    <div className="md:col-span-2">
+                        <label className={labelCls}>Valor Original (R$) <span className="text-red-500">*</span></label>
+                        <div className="relative mb-5">
                             <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm font-medium pointer-events-none">R$</span>
                             <input
                                 type="number" step="0.01" min="0.01"
                                 value={form.valor}
                                 onChange={handleChange('valor')}
-                                className={`${inputCls} pl-10`}
+                                className={`${inputCls} pl-10 border-indigo-200 focus:ring-indigo-500 focus:border-indigo-500 text-base font-semibold`}
                                 placeholder="0,00"
                             />
+                        </div>
+
+                        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                            <div>
+                                <label className="block text-xs font-semibold text-slate-600 mb-1">Juros (R$)</label>
+                                <input type="number" step="0.01" min="0" value={form.juros ?? ''} onChange={handleChange('juros')} className={`${inputCls} py-2`} placeholder="0,00" />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-semibold text-slate-600 mb-1">Multa (R$)</label>
+                                <input type="number" step="0.01" min="0" value={form.multa ?? ''} onChange={handleChange('multa')} className={`${inputCls} py-2`} placeholder="0,00" />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-semibold text-slate-600 mb-1">Acréscimo (R$)</label>
+                                <input type="number" step="0.01" min="0" value={form.acrescimo ?? ''} onChange={handleChange('acrescimo')} className={`${inputCls} py-2`} placeholder="0,00" />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-semibold text-slate-600 mb-1">Desconto (R$)</label>
+                                <input type="number" step="0.01" min="0" value={form.desconto ?? ''} onChange={handleChange('desconto')} className={`${inputCls} py-2 text-emerald-600`} placeholder="0,00" />
+                            </div>
+                        </div>
+
+                        {/* Valor Total Calculado */}
+                        <div className={`mt-5 p-4 rounded-xl border flex items-center justify-between
+                            ${form.tipo === 'RECEBER' ? 'bg-emerald-50 border-emerald-100' : 'bg-red-50 border-red-100'}`}>
+                            <span className="text-sm font-bold text-slate-700">Valor Total Final:</span>
+                            <span className={`text-xl font-black ${form.tipo === 'RECEBER' ? 'text-emerald-700' : 'text-red-700'}`}>
+                                R$ {((parseFloat(form.valor) || 0) + (parseFloat(form.juros) || 0) + (parseFloat(form.multa) || 0) + (parseFloat(form.acrescimo) || 0) - (parseFloat(form.desconto) || 0)).toFixed(2)}
+                            </span>
                         </div>
                     </div>
 
@@ -546,7 +577,11 @@ function ModalEdicao({ conta, categorias, parceiros, contasCorrentes, loadingSel
     const [form, setForm] = useState({
         tipo: conta.tipo ?? 'PAGAR',
         descricao: conta.descricao ?? '',
-        valor: String(conta.valor) ?? '',
+        valor: String(conta.valor ?? ''),
+        juros: conta.juros != null ? String(conta.juros) : '',
+        multa: conta.multa != null ? String(conta.multa) : '',
+        desconto: conta.desconto != null ? String(conta.desconto) : '',
+        acrescimo: conta.acrescimo != null ? String(conta.acrescimo) : '',
         data_vencimento: conta.data_vencimento ?? '',
         status: conta.status ?? 'Pendente',
         categoria_id: conta.categoria_id != null ? String(conta.categoria_id) : '',
@@ -589,6 +624,10 @@ function ModalEdicao({ conta, categorias, parceiros, contasCorrentes, loadingSel
                 tipo: form.tipo,
                 descricao: form.descricao.trim(),
                 valor: parseFloat(form.valor),
+                juros: parseFloat(form.juros) || 0,
+                multa: parseFloat(form.multa) || 0,
+                desconto: parseFloat(form.desconto) || 0,
+                acrescimo: parseFloat(form.acrescimo) || 0,
                 data_vencimento: form.data_vencimento,
                 status: form.status === 'Pago' ? 'PAGO' : 'Pendente',
                 categoria_id: form.categoria_id ? Number(form.categoria_id) : null,
@@ -819,6 +858,7 @@ function FormularioNovoLancamento({ categorias, parceiros, contasCorrentes, load
 
     const [form, setForm] = useState({
         tipo: 'PAGAR', descricao: '', valor: '',
+        juros: '', multa: '', desconto: '', acrescimo: '',
         data_vencimento: '', status: 'Pendente',
         categoria_id: '', parceiro_id: '',
         conta_corrente_id: '', data_pagamento: dataHoje,
@@ -848,6 +888,10 @@ function FormularioNovoLancamento({ categorias, parceiros, contasCorrentes, load
                 tipo: form.tipo,
                 descricao: form.descricao.trim(),
                 valor: parseFloat(form.valor),
+                juros: parseFloat(form.juros) || 0,
+                multa: parseFloat(form.multa) || 0,
+                desconto: parseFloat(form.desconto) || 0,
+                acrescimo: parseFloat(form.acrescimo) || 0,
                 data_vencimento: form.data_vencimento,
                 status: form.status === 'Pago' ? 'PAGO' : 'Pendente',
                 ...(form.categoria_id ? { categoria_id: Number(form.categoria_id) } : {}),
