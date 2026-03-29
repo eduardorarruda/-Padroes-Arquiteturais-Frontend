@@ -243,6 +243,9 @@ function CartaoDetail({ cartao, onBack, onEditar }) {
         valor: '',
         data: new Date().toISOString().split('T')[0],
         categoria_id: '',
+        isParcelado: false,
+        quantidade_parcelas: 2,
+        dividir_valor: true,
     });
     const [addLoading, setAddLoading] = useState(false);
     const [fecharLoading, setFecharLoading] = useState(false);
@@ -287,10 +290,13 @@ function CartaoDetail({ cartao, onBack, onEditar }) {
             await cartoesAPI.criarLancamento(cartao.id, {
                 descricao: formLancamento.descricao.trim(),
                 valor: parseFloat(formLancamento.valor),
-                data: formLancamento.data,
+                data_compra: formLancamento.data,
+                mes_fatura: Number(mesSelecionado),
+                ano_fatura: Number(anoSelecionado),
+                quantidade_parcelas: formLancamento.isParcelado ? parseInt(formLancamento.quantidade_parcelas, 10) || 1 : 1,
+                dividir_valor: formLancamento.isParcelado ? formLancamento.dividir_valor : false,
                 ...(formLancamento.categoria_id ? { categoria_id: Number(formLancamento.categoria_id) } : {}),
-            });
-            toast.success('Compra adicionada com sucesso!');
+            }); t.success('Compra adicionada com sucesso!');
             setFormLancamento((f) => ({ ...f, descricao: '', valor: '' }));
             carregarLancamentos();
         } catch (err) {
@@ -414,6 +420,59 @@ function CartaoDetail({ cartao, onBack, onEditar }) {
                                     className={inputCls}
                                     required
                                 />
+                            </div>
+                            {/* Toggle Parcelamento */}
+                            <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 mt-1 mb-2">
+                                <label className="flex items-center gap-3 cursor-pointer select-none">
+                                    <div className="relative inline-flex items-center">
+                                        <input
+                                            type="checkbox"
+                                            checked={formLancamento.isParcelado}
+                                            onChange={(e) => setFormLancamento(f => ({ ...f, isParcelado: e.target.checked }))}
+                                            className="sr-only peer"
+                                        />
+                                        <div className="w-9 h-5 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600"></div>
+                                    </div>
+                                    <span className="text-sm font-semibold text-slate-700">Compra Parcelada?</span>
+                                </label>
+
+                                {formLancamento.isParcelado && (
+                                    <div className="mt-4 pt-4 border-t border-slate-200 flex flex-col gap-4 animate-in fade-in slide-in-from-top-2 duration-300">
+                                        <div>
+                                            <label className="block text-xs font-semibold text-slate-700 mb-1">Quantidade de Parcelas *</label>
+                                            <input
+                                                type="number" min="2" step="1"
+                                                value={formLancamento.quantidade_parcelas}
+                                                onChange={(e) => setFormLancamento(f => ({ ...f, quantidade_parcelas: e.target.value }))}
+                                                className={inputCls}
+                                                required
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-semibold text-slate-700 mb-1">Regra do Valor *</label>
+                                            <div className="flex flex-col gap-2 mt-1">
+                                                <label className="flex items-center gap-2 cursor-pointer text-xs text-slate-700 font-medium select-none">
+                                                    <input
+                                                        type="radio"
+                                                        checked={formLancamento.dividir_valor === true}
+                                                        onChange={() => setFormLancamento(f => ({ ...f, dividir_valor: true }))}
+                                                        className="w-3.5 h-3.5 text-indigo-600 border-slate-300 focus:ring-indigo-500 cursor-pointer"
+                                                    />
+                                                    Dividir o valor total pelas parcelas
+                                                </label>
+                                                <label className="flex items-center gap-2 cursor-pointer text-xs text-slate-700 font-medium select-none">
+                                                    <input
+                                                        type="radio"
+                                                        checked={formLancamento.dividir_valor === false}
+                                                        onChange={() => setFormLancamento(f => ({ ...f, dividir_valor: false }))}
+                                                        className="w-3.5 h-3.5 text-indigo-600 border-slate-300 focus:ring-indigo-500 cursor-pointer"
+                                                    />
+                                                    O valor informado é o de cada parcela
+                                                </label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
                             </div>
                             <div>
                                 <label className="block text-xs font-semibold text-slate-700 mb-1">Categoria *</label>
@@ -609,11 +668,11 @@ export default function CartoesPage() {
                         >
                             {/* Reflexo decorativo */}
                             <div className="absolute top-0 right-0 -mr-8 -mt-8 w-24 h-24 bg-white opacity-5 rounded-full blur-2xl transform group-hover:scale-150 transition-transform duration-500" />
-                            
+
                             <div className="flex justify-between items-start mb-6">
                                 <CreditCard size={28} className="text-indigo-300" />
                                 <div className="flex items-center gap-2 relative z-10">
-                                    <button 
+                                    <button
                                         onClick={(e) => { e.stopPropagation(); setEditandoCartao(cartao); setModalAberta(true); }}
                                         className="p-1.5 text-indigo-300/60 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
                                         title="Editar Cartão"
@@ -625,7 +684,7 @@ export default function CartoesPage() {
                             </div>
                             <h3 className="text-xl font-bold text-white tracking-wide mb-1">{cartao.nome}</h3>
                             <p className="text-xs text-indigo-200/80 mb-6 font-mono">**** **** **** {String(cartao.id).padStart(4, '0')}</p>
-                            
+
                             <div className="grid grid-cols-2 gap-y-3 gap-x-4">
                                 <div>
                                     <p className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold mb-1">Usado</p>
